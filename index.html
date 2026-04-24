@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compartir Archivos P2P</title>
+    <!-- Tailwind CSS para los estilos -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- PeerJS para las conexiones P2P -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Estilos personalizados básicos */
+        body { background-color: #f3f4f6; }
+        .drag-over { border-color: #3b82f6; background-color: #eff6ff; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="text-gray-800 font-sans h-screen flex flex-col">
+
+    <!-- Pantalla de Inicio (Crear / Unirse) -->
+    <div id="screen-login" class="flex-1 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 text-center">
+            <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="share-2" class="w-8 h-8"></i>
+            </div>
+            <h1 class="text-2xl font-bold mb-2">Red Local P2P</h1>
+            <p class="text-gray-500 mb-6 text-sm">Comparte archivos y carpetas directamente con otras personas, sin servidores intermedios.</p>
+            
+            <div class="mb-4 text-left">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Tu Nombre</label>
+                <input type="text" id="username" placeholder="Ej: Carlos" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mt-6">
+                <button onclick="createRoom()" class="flex flex-col items-center justify-center p-4 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl transition-colors">
+                    <i data-lucide="users" class="w-6 h-6 text-blue-600 mb-2"></i>
+                    <span class="font-semibold text-blue-800 text-sm">Crear Grupo</span>
+                </button>
+                <button onclick="showJoinInput()" class="flex flex-col items-center justify-center p-4 bg-green-50 hover:bg-green-100 border border-green-200 rounded-xl transition-colors">
+                    <i data-lucide="log-in" class="w-6 h-6 text-green-600 mb-2"></i>
+                    <span class="font-semibold text-green-800 text-sm">Unirse a Grupo</span>
+                </button>
+            </div>
+
+            <div id="join-section" class="hidden mt-4 text-left animate-fade-in">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Código del Grupo</label>
+                <div class="flex gap-2">
+                    <input type="text" id="room-code" placeholder="Código de 6 letras" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none uppercase">
+                    <button onclick="joinRoom()" class="px-4 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700">Entrar</button>
+                </div>
+            </div>
+            
+            <p id="login-error" class="text-red-500 text-sm mt-4 hidden"></p>
+        </div>
+    </div>
+
+    <!-- Pantalla Principal de la Sala -->
+    <div id="screen-room" class="hidden h-screen flex flex-col md:flex-row w-full max-w-7xl mx-auto">
+        
+        <!-- Sidebar Izquierda (Info y Usuarios) -->
+        <div class="w-full md:w-80 bg-white border-r border-gray-200 flex flex-col shadow-sm z-10 shrink-0 h-auto md:h-full">
+            <div class="p-6 border-b border-gray-100">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center">
+                        <i data-lucide="share-2" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-gray-800">Sala P2P</h2>
+                        <p class="text-xs text-gray-500">Conexión directa segura</p>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 relative">
+                    <p class="text-xs text-gray-500 mb-1 uppercase font-semibold">Código del Grupo</p>
+                    <div class="flex items-center justify-between">
+                        <span id="display-room-code" class="text-xl font-mono font-bold text-gray-800 tracking-wider"></span>
+                        <button onclick="copyRoomCode()" class="p-2 bg-white rounded-lg shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors" title="Copiar Código">
+                            <i data-lucide="copy" class="w-4 h-4 text-gray-600"></i>
+                        </button>
+                    </div>
+                    <div id="copy-toast" class="absolute top-[-30px] right-0 bg-gray-800 text-white text-xs px-2 py-1 rounded hidden">¡Copiado!</div>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-6">
+                <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Participantes (<span id="user-count">1</span>)</h3>
+                <ul id="user-list" class="space-y-3">
+                    <!-- Los usuarios aparecerán aquí -->
+                </ul>
+            </div>
+            
+            <div class="p-4 border-t border-gray-100">
+                 <button onclick="leaveRoom()" class="w-full py-2 px-4 bg-red-50 text-red-600 font-medium rounded-lg hover:bg-red-100 flex items-center justify-center gap-2 transition-colors">
+                    <i data-lucide="log-out" class="w-4 h-4"></i> Salir del Grupo
+                 </button>
+            </div>
+        </div>
+
+        <!-- Área Principal (Archivos) -->
+        <div class="flex-1 flex flex-col h-full bg-gray-50">
+            <!-- Cabecera de área principal -->
+            <div class="bg-white p-4 border-b border-gray-200 flex items-center justify-between shadow-sm">
+                <h2 class="font-semibold text-gray-800 flex items-center gap-2">
+                    <i data-lucide="folder-open" class="w-5 h-5 text-blue-500"></i> Archivos Compartidos
+                </h2>
+                <div class="flex gap-2">
+                    <!-- Inputs ocultos para seleccionar archivos -->
+                    <input type="file" id="file-input" multiple class="hidden" onchange="handleFilesSelected(event)">
+                    <input type="file" id="folder-input" webkitdirectory directory multiple class="hidden" onchange="handleFilesSelected(event)">
+                    
+                    <button onclick="document.getElementById('file-input').click()" class="px-3 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center gap-2 text-sm font-medium transition-colors shadow-sm">
+                        <i data-lucide="file-plus" class="w-4 h-4"></i> Enviar Archivos
+                    </button>
+                    <button onclick="document.getElementById('folder-input').click()" class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm font-medium transition-colors shadow-sm">
+                        <i data-lucide="folder-plus" class="w-4 h-4"></i> Enviar Carpeta
+                    </button>
+                </div>
+            </div>
+
+            <!-- Zona de Drop y Lista de Transferencias -->
+            <div id="drop-zone" class="flex-1 overflow-y-auto p-6 relative">
+                
+                <!-- Mensaje cuando no hay archivos -->
+                <div id="empty-state" class="h-full flex flex-col items-center justify-center text-center text-gray-400 border-2 border-dashed border-gray-300 rounded-2xl bg-gray-50/50">
+                    <i data-lucide="upload-cloud" class="w-16 h-16 mb-4 text-gray-300"></i>
+                    <p class="text-lg font-medium text-gray-600">Arrastra archivos o carpetas aquí</p>
+                    <p class="text-sm mt-1">Los archivos se enviarán automáticamente a todos los conectados</p>
+                </div>
+
+                <!-- Contenedor de las transferencias -->
+                <div id="transfers-container" class="space-y-4 hidden pb-10">
+                    <!-- Tarjetas de transferencia aparecerán aquí -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overlay de carga inicial -->
+    <div id="loading-overlay" class="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 hidden flex-col items-center justify-center">
+        <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600 mb-4"></div>
+        <p class="text-gray-800 font-medium" id="loading-text">Conectando...</p>
+    </div>
+
+    <script>
+        // Inicializar Iconos
+        lucide.createIcons();
+
+        // --- ESTADO GLOBAL ---
+        let peer = null;
+        let myId = '';
+        let myName = '';
+        let isHost = false;
+        let connections = new Map(); // peerId -> DataConnection
+        let connectedUsers = new Map(); // peerId -> { name }
+        
+        const CHUNK_SIZE = 16 * 1024; // 16KB por chunk (Límite seguro de WebRTC)
+        let transfers = new Map(); // transferId -> { metadata, chunks, progress, etc }
+
+        // --- UTILIDADES ---
+        const generateCode = () => Math.random().toString(36).substring(2, 8).toUpperCase();
+        
+        const showLoading = (text) => {
+            document.getElementById('loading-text').innerText = text;
+            document.getElementById('loading-overlay').classList.remove('hidden');
+            document.getElementById('loading-overlay').classList.add('flex');
+        };
+        const hideLoading = () => {
+            document.getElementById('loading-overlay').classList.add('hidden');
+            document.getElementById('loading-overlay').classList.remove('flex');
+        };
+
+        const showError = (msg) => {
+            const errEl = document.getElementById('login-error');
+            errEl.innerText = msg;
+            errEl.classList.remove('hidden');
+            setTimeout(() => errEl.classList.add('hidden'), 5000);
+        };
+
+        const showJoinInput = () => {
+            document.getElementById('join-section').classList.remove('hidden');
+        };
+
+        const formatBytes = (bytes, decimals = 2) => {
+            if (!+bytes) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+        };
+
+        // Copiar usando método legacy para asegurar compatibilidad en iframes
+        const copyRoomCode = () => {
+            const code = document.getElementById('display-room-code').innerText;
+            const textArea = document.createElement("textarea");
+            textArea.value = code;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                const toast = document.getElementById('copy-toast');
+                toast.classList.remove('hidden');
+                setTimeout(() => toast.classList.add('hidden'), 2000);
+            } catch (err) {
+                console.error('No se pudo copiar', err);
+            }
+            document.body.removeChild(textArea);
+        };
+
+        // --- INICIAR Y CONECTAR PEERJS ---
+
+        const initPeer = (idToRequest = null) => {
+            return new Promise((resolve, reject) => {
+                const config = {
+                    debug: 1,
+                    config: {'iceServers': [
+                        { url: 'stun:stun.l.google.com:19302' },
+                        { url: 'stun:stun1.l.google.com:19302' }
+                    ]}
+                };
+                
+                peer = idToRequest ? new Peer(idToRequest, config) : new Peer(config);
+
+                peer.on('open', (id) => {
+                    myId = id;
+                    resolve(id);
+                });
+
+                peer.on('error', (err) => {
+                    console.error("PeerJS Error:", err);
+                    reject(err);
+                });
+
+                // Escuchar conexiones entrantes
+                peer.on('connection', handleIncomingConnection);
+            });
+        };
+
+        const createRoom = async () => {
+            const nameInput = document.getElementById('username').value.trim();
+            if(!nameInput) return showError("Por favor ingresa tu nombre");
+            myName = nameInput;
+
+            showLoading("Creando grupo...");
+            try {
+                // El host intentará usar un ID de 6 letras legible
+                const roomCode = generateCode();
+                await initPeer('P2P-' + roomCode); 
+                isHost = true;
+                enterRoomUI(roomCode);
+            } catch (err) {
+                // Si falla (quizás id duplicado), usar uno aleatorio
+                try {
+                    await initPeer();
+                    isHost = true;
+                    enterRoomUI(myId);
+                } catch(e) {
+                    hideLoading();
+                    showError("Error al conectar con el servidor de señalización.");
+                }
+            }
+        };
+
+        const joinRoom = async () => {
+            const nameInput = document.getElementById('username').value.trim();
+            let roomCode = document.getElementById('room-code').value.trim().toUpperCase();
+            
+            if(!nameInput) return showError("Por favor ingresa tu nombre");
+            if(!roomCode) return showError("Ingresa el código del grupo");
+            myName = nameInput;
+
+            // Formatear si no incluyeron el prefijo
+            if(roomCode.length === 6) roomCode = 'P2P-' + roomCode;
+
+            showLoading("Conectando al grupo...");
+            try {
+                await initPeer();
+                isHost = false;
+                
+                // Conectar al Host
+                const conn = peer.connect(roomCode, { metadata: { name: myName } });
+                setupConnectionHandling(conn);
+                
+                conn.on('open', () => {
+                    enterRoomUI(roomCode.replace('P2P-', ''));
+                });
+                
+                setTimeout(() => {
+                    if(!connections.has(roomCode)) {
+                        hideLoading();
+                        showError("No se pudo conectar. Verifica el código.");
+                    }
+                }, 5000);
+
+            } catch(e) {
+                hideLoading();
+                showError("Error de conexión P2P.");
+            }
+        };
+
+        // --- MANEJO DE CONEXIONES Y RED (MALLA / MESH) ---
+
+        const handleIncomingConnection = (conn) => {
+            // Un peer se está conectando a nosotros
+            setupConnectionHandling(conn);
+        };
+
+        const setupConnectionHandling = (conn) => {
+            conn.on('open', () => {
+                const peerId = conn.peer;
+                const peerName = conn.metadata?.name || 'Desconocido';
+                
+                connections.set(peerId, conn);
+                connectedUsers.set(peerId, { name: peerName });
+                
+                updateUsersUI();
+                
+                // Si soy el Host, informo al nuevo integrante quiénes más están conectados
+                // para que forme la malla (Mesh network)
+                if (isHost) {
+                    const otherPeers = Array.from(connectedUsers.entries())
+                        .filter(([id]) => id !== peerId)
+                        .map(([id, data]) => ({ id, name: data.name }));
+                    
+                    conn.send({ type: 'network-info', peers: otherPeers, hostName: myName });
+                } else {
+                    // Si no soy el host, le envío mis datos al que me conectó
+                    conn.send({ type: 'hello', name: myName });
+                }
+            });
+
+            conn.on('data', (data) => processData(conn.peer, data));
+            
+            conn.on('close', () => {
+                connections.delete(conn.peer);
+                connectedUsers.delete(conn.peer);
+                updateUsersUI();
+            });
+            
+            conn.on('error', (err) => console.log('Error de conexión:', err));
+        };
+
+        const connectToPeer = (peerId, peerName) => {
+            if(peerId === myId || connections.has(peerId)) return;
+            const conn = peer.connect(peerId, { metadata: { name: myName } });
+            setupConnectionHandling(conn);
+        };
+
+        // --- PROCESAMIENTO DE MENSAJES Y ARCHIVOS ---
+
+        const processData = (senderId, data) => {
+            if (!data || !data.type) return;
+
+            switch (data.type) {
+                // --- Señalización Interna (Mesh) ---
+                case 'network-info':
+                    // Recibido del Host. Contiene info de otros peers a los que debo conectarme.
+                    connectedUsers.set(senderId, { name: data.hostName });
+                    updateUsersUI();
+                    data.peers.forEach(p => connectToPeer(p.id, p.name));
+                    break;
+                case 'hello':
+                    // Saludo de un peer directo
+                    connectedUsers.set(senderId, { name: data.name });
+                    updateUsersUI();
+                    break;
+
+                // --- Transferencia de Archivos ---
+                case 'file-header':
+                    handleIncomingFileHeader(senderId, data);
+                    break;
+                case 'file-chunk':
+                    handleIncomingFileChunk(data);
+                    break;
+                case 'file-end':
+                    handleIncomingFileEnd(data);
+                    break;
+            }
+        };
+
+        // --- LOGICA DE TRANSFERENCIA DE ARCHIVOS ---
+
+        const broadcastData = async (data) => {
+            const conns = Array.from(connections.values());
+            for (let conn of conns) {
+                if (conn.open) {
+                    // Control de flujo rudimentario para no saturar el canal de WebRTC
+                    while (conn.dataChannel && conn.dataChannel.bufferedAmount > 2 * 1024 * 1024) { // 2MB
+                        await new Promise(r => setTimeout(r, 50));
+                    }
+                    conn.send(data);
+                }
+            }
+        };
+
+        const handleFilesSelected = async (event) => {
+            const files = event.target.files;
+            if(!files || files.length === 0) return;
+
+            if (connections.size === 0) {
+                alert("No hay nadie conectado a la sala todavía.");
+                event.target.value = ''; // Reset
+                return;
+            }
+
+            for(let file of files) {
+                await sendFile(file);
+            }
+            event.target.value = ''; // Reset input
+        };
+
+        const sendFile = async (file) => {
+            const transferId = 'tx-' + Math.random().toString(36).substring(2, 10);
+            const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+            
+            // Usar webkitRelativePath si seleccionaron una carpeta, de lo contrario el nombre normal
+            const displayPath = file.webkitRelativePath ? file.webkitRelativePath : file.name;
+
+            // 1. Guardar estado local
+            transfers.set(transferId, {
+                id: transferId,
+                name: displayPath,
+                size: file.size,
+                type: file.type,
+                direction: 'out',
+                progress: 0,
+                totalChunks: totalChunks,
+                status: 'sending'
+            });
+            renderTransfer(transferId);
+
+            // 2. Enviar Header
+            await broadcastData({
+                type: 'file-header',
+                transferId,
+                name: displayPath,
+                size: file.size,
+                fileType: file.type,
+                totalChunks,
+                senderName: myName
+            });
+
+            // Si el archivo está vacío
+            if (file.size === 0) {
+                await broadcastData({ type: 'file-end', transferId });
+                updateTransferProgress(transferId, 100);
+                return;
+            }
+
+            // 3. Leer y enviar chunks secuencialmente
+            let chunkIndex = 0;
+            const reader = new FileReader();
+
+            const readNextChunk = () => {
+                const start = chunkIndex * CHUNK_SIZE;
+                const end = Math.min(start + CHUNK_SIZE, file.size);
+                const blob = file.slice(start, end);
+                reader.readAsArrayBuffer(blob);
+            };
+
+            return new Promise((resolve) => {
+                reader.onload = async (e) => {
+                    const buffer = e.target.result;
+                    
+                    await broadcastData({
+                        type: 'file-chunk',
+                        transferId,
+                        chunkIndex,
+                        data: buffer
+                    });
+
+                    chunkIndex++;
+                    const progress = Math.round((chunkIndex / totalChunks) * 100);
+                    updateTransferProgress(transferId, progress);
+
+                    if (chunkIndex < totalChunks) {
+                        readNextChunk();
+                    } else {
+                        // Terminado
+                        await broadcastData({ type: 'file-end', transferId });
+                        updateTransferProgress(transferId, 100, 'Completado');
+                        resolve();
+                    }
+                };
+                readNextChunk(); // Iniciar
+            });
+        };
+
+        const handleIncomingFileHeader = (senderId, data) => {
+            transfers.set(data.transferId, {
+                id: data.transferId,
+                name: data.name,
+                size: data.size,
+                type: data.fileType,
+                direction: 'in',
+                progress: 0,
+                totalChunks: data.totalChunks,
+                receivedChunks: 0,
+                chunks: [], // Arreglo para guardar los buffers
+                senderName: data.senderName,
+                status: 'receiving'
+            });
+            renderTransfer(data.transferId);
+        };
+
+        const handleIncomingFileChunk = (data) => {
+            const tx = transfers.get(data.transferId);
+            if (!tx) return;
+
+            tx.chunks[data.chunkIndex] = data.data;
+            tx.receivedChunks++;
+            
+            const progress = Math.round((tx.receivedChunks / tx.totalChunks) * 100);
+            updateTransferProgress(data.transferId, progress);
+        };
+
+        const handleIncomingFileEnd = (data) => {
+            const tx = transfers.get(data.transferId);
+            if (!tx) return;
+
+            // Combinar todos los chunks
+            const blob = new Blob(tx.chunks, { type: tx.type });
+            tx.blobUrl = URL.createObjectURL(blob);
+            tx.status = 'completed';
+            
+            // Liberar memoria del arreglo
+            delete tx.chunks; 
+
+            updateTransferProgress(data.transferId, 100, 'Completado');
+            
+            // Habilitar botón de descarga
+            const txElement = document.getElementById(data.transferId);
+            if(txElement) {
+                const btnContainer = txElement.querySelector('.action-container');
+                btnContainer.innerHTML = `
+                    <a href="${tx.blobUrl}" download="${tx.name.split('/').pop()}" 
+                       class="px-3 py-1 bg-blue-600 text-white text-xs font-semibold rounded-md hover:bg-blue-700 shadow-sm transition flex items-center gap-1">
+                       <i data-lucide="download" class="w-3 h-3"></i> Guardar
+                    </a>
+                `;
+                lucide.createIcons({root: btnContainer});
+            }
+        };
+
+        // --- MANEJO DE INTERFAZ (UI) ---
+
+        const enterRoomUI = (code) => {
+            hideLoading();
+            document.getElementById('screen-login').classList.add('hidden');
+            document.getElementById('screen-room').classList.remove('hidden');
+            document.getElementById('display-room-code').innerText = code;
+            
+            updateUsersUI();
+            setupDragAndDrop();
+        };
+
+        const leaveRoom = () => {
+            if(peer) peer.destroy();
+            connections.clear();
+            connectedUsers.clear();
+            transfers.clear();
+            
+            document.getElementById('user-list').innerHTML = '';
+            document.getElementById('transfers-container').innerHTML = '';
+            document.getElementById('transfers-container').classList.add('hidden');
+            document.getElementById('empty-state').classList.remove('hidden');
+            
+            document.getElementById('screen-room').classList.add('hidden');
+            document.getElementById('screen-login').classList.remove('hidden');
+        };
+
+        const updateUsersUI = () => {
+            const list = document.getElementById('user-list');
+            const count = document.getElementById('user-count');
+            
+            list.innerHTML = '';
+            count.innerText = connections.size + 1; // +1 incluyéndome
+
+            // Yo
+            list.innerHTML += `
+                <li class="flex items-center gap-3 p-2 rounded-lg bg-blue-50 border border-blue-100">
+                    <div class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm">
+                        ${myName.charAt(0).toUpperCase()}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-semibold text-blue-900 truncate">${myName} (Tú)</p>
+                    </div>
+                </li>
+            `;
+
+            // Los demás
+            connectedUsers.forEach((data, id) => {
+                list.innerHTML += `
+                    <li class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 border border-transparent">
+                        <div class="w-8 h-8 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center font-bold text-sm">
+                            ${data.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium text-gray-700 truncate">${data.name}</p>
+                            <p class="text-xs text-green-500 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-500 inline-block"></span> Conectado</p>
+                        </div>
+                    </li>
+                `;
+            });
+        };
+
+        const renderTransfer = (transferId) => {
+            document.getElementById('empty-state').classList.add('hidden');
+            const container = document.getElementById('transfers-container');
+            container.classList.remove('hidden');
+
+            const tx = transfers.get(transferId);
+            const isOut = tx.direction === 'out';
+            const icon = isOut ? 'upload' : 'download';
+            const color = isOut ? 'text-purple-500' : 'text-blue-500';
+            const bgIcon = isOut ? 'bg-purple-100' : 'bg-blue-100';
+            const actionText = isOut ? `Enviando a ${connections.size} persona(s)` : `Recibiendo de ${tx.senderName}`;
+
+            const html = `
+                <div id="${transferId}" class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col gap-3 animate-fade-in">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3 overflow-hidden">
+                            <div class="w-10 h-10 rounded-lg ${bgIcon} ${color} flex items-center justify-center shrink-0">
+                                <i data-lucide="${icon}" class="w-5 h-5"></i>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <p class="text-sm font-semibold text-gray-800 truncate" title="${tx.name}">${tx.name}</p>
+                                <p class="text-xs text-gray-500">${formatBytes(tx.size)} • ${actionText}</p>
+                            </div>
+                        </div>
+                        <div class="action-container shrink-0 ml-2">
+                            <span class="text-xs font-semibold text-gray-500 status-text">0%</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Barra de progreso -->
+                    <div class="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                        <div class="bg-blue-500 h-1.5 rounded-full transition-all duration-300 w-0 progress-bar"></div>
+                    </div>
+                </div>
+            `;
+            
+            container.insertAdjacentHTML('afterbegin', html);
+            lucide.createIcons({ root: document.getElementById(transferId) });
+        };
+
+        const updateTransferProgress = (transferId, percentage, statusTextOverwrite = null) => {
+            const el = document.getElementById(transferId);
+            if(!el) return;
+
+            const progressBar = el.querySelector('.progress-bar');
+            const statusText = el.querySelector('.status-text');
+
+            progressBar.style.width = `${percentage}%`;
+            
+            if (percentage === 100) {
+                progressBar.classList.remove('bg-blue-500');
+                progressBar.classList.add('bg-green-500');
+            }
+
+            if(statusTextOverwrite) {
+                if(statusText) statusText.innerText = statusTextOverwrite;
+            } else {
+                if(statusText) statusText.innerText = `${percentage}%`;
+            }
+        };
+
+        // --- ARRASTRAR Y SOLTAR (Drag & Drop) ---
+        const setupDragAndDrop = () => {
+            const dropZone = document.getElementById('drop-zone');
+
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'), false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'), false);
+            });
+
+            dropZone.addEventListener('drop', handleDrop, false);
+        };
+
+        const handleDrop = async (e) => {
+            const dt = e.dataTransfer;
+            const items = dt.items;
+
+            if (connections.size === 0) {
+                alert("No hay nadie conectado para recibir los archivos.");
+                return;
+            }
+
+            // Si el navegador soporta webkitGetAsEntry (para recorrer carpetas arrastradas)
+            if (items && items[0] && items[0].webkitGetAsEntry) {
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i].webkitGetAsEntry();
+                    if (item) {
+                        traverseFileTree(item);
+                    }
+                }
+            } else {
+                // Fallback normal
+                const files = dt.files;
+                for(let file of files) {
+                    await sendFile(file);
+                }
+            }
+        };
+
+        // Recorrer árbol de directorios para Drag & Drop
+        const traverseFileTree = (item, path = "") => {
+            if (item.isFile) {
+                item.file(async (file) => {
+                    // Agregamos la ruta relativa artificialmente para mantener la estructura visual
+                    Object.defineProperty(file, 'webkitRelativePath', {
+                        value: path + file.name,
+                        writable: false
+                    });
+                    await sendFile(file);
+                });
+            } else if (item.isDirectory) {
+                const dirReader = item.createReader();
+                dirReader.readEntries((entries) => {
+                    for (let i = 0; i < entries.length; i++) {
+                        traverseFileTree(entries[i], path + item.name + "/");
+                    }
+                });
+            }
+        };
+
+        // Configuración adicional
+        window.onbeforeunload = function() {
+            if (connections.size > 0 || transfers.size > 0) {
+                return "Tienes conexiones o transferencias activas. ¿Seguro que quieres salir?";
+            }
+        };
+
+    </script>
+</body>
+</html>
