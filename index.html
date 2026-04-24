@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Webapp de Soporte Local - Servidor</title>
+    <title>Webapp Soporte PRO - Servidor Local</title>
     
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -23,23 +22,21 @@
         }
     </script>
 
-    <!-- React & ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    
-    <!-- Babel para compilar JSX en el navegador -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <style>
         body { background-color: #0f172a; color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-        .pulse-dot { animation: pulse 2s infinite; }
+        .pulse-dot { animation: pulse 1.5s infinite; }
         @keyframes pulse {
             0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
             70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
             100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
         }
+        .nested-border { border-left: 2px solid #334155; margin-left: 10px; padding-left: 14px; }
     </style>
 </head>
 <body>
@@ -48,7 +45,7 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // --- ICONOS SVG ---
+        // --- ICONOS ---
         const Icons = {
             Dashboard: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>,
             Modules: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>,
@@ -57,78 +54,164 @@
             History: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>,
             Settings: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>,
             Server: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"></path></svg>,
-            Cloud: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>,
             Check: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>,
             X: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>,
-            Alert: () => <svg className="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            Alert: () => <svg className="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>,
+            Refresh: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
         };
 
-        // --- DATOS INICIALES MOCKEADOS ---
-        const initialSchema = ['estacionamiento_capacidad', 'estacionamiento_ocupacion', 'barrera_estado', 'app_version', 'app_sesiones_activas', 'nube_ultima_sync', 'vpn_activa'];
-        
-        const initialModules = {
-            Estacionamiento: {
-                estacionamiento_capacidad: 500,
-                estacionamiento_ocupacion: 342,
-                barrera_estado: 'abierta'
-            },
-            Aplicacion: {
-                app_version: 'v4.2.1',
-                app_sesiones_activas: 18
-            },
-            Red_y_Nube: {
-                nube_ultima_sync: '2026-04-24 07:35:00',
-                vpn_activa: 'si'
+        // --- FUNCIONES DE UTILIDAD (JSON ANIDADO) ---
+        const deepClone = (obj) => JSON.parse(JSON.stringify(obj));
+
+        const setNestedValue = (obj, path, value) => {
+            const newObj = deepClone(obj);
+            let current = newObj;
+            for (let i = 0; i < path.length - 1; i++) {
+                if (!current[path[i]]) current[path[i]] = {};
+                current = current[path[i]];
             }
+            
+            // Auto cast a números y booleanos para mantener consistencia
+            if (value === "true") current[path[path.length - 1]] = true;
+            else if (value === "false") current[path[path.length - 1]] = false;
+            else if (!isNaN(value) && value.trim() !== "") current[path[path.length - 1]] = Number(value);
+            else current[path[path.length - 1]] = value;
+            
+            return newObj;
         };
 
         // --- COMPONENTE PRINCIPAL ---
         const App = () => {
-            // Estado Global
-            const [activeTab, setActiveTab] = useState('dashboard');
+            const [activeTab, setActiveTab] = useState('modules');
             const [serverIp, setServerIp] = useState('10.8.0.45');
+            const [serverPort, setServerPort] = useState('8080'); // Puerto por defecto del backend
             const [isConnected, setIsConnected] = useState(false);
             const [heartbeatCount, setHeartbeatCount] = useState(0);
             
-            // Permisos y Configuración
-            const [currentUserRole, setCurrentUserRole] = useState('admin'); // admin, support, viewer
-            const [globalEditEnabled, setGlobalEditEnabled] = useState(false);
+            const [currentUserRole, setCurrentUserRole] = useState('admin');
+            const [globalEditEnabled, setGlobalEditEnabled] = useState(true);
             
-            // Datos
-            const [modulesData, setModulesData] = useState(initialModules);
+            const [modulesData, setModulesData] = useState({});
+            const [originalSchema, setOriginalSchema] = useState([]);
             const [logs, setLogs] = useState([]);
+            const [isLoading, setIsLoading] = useState(false);
 
-            // Simulador de Heartbeat
+            const getBaseUrl = () => `http://${serverIp}:${serverPort}/api`;
+
+            // 1. SISTEMA DE HEARTBEAT REAL (Ping HTTP al servidor)
             useEffect(() => {
                 let interval;
                 if (isConnected) {
-                    interval = setInterval(() => {
-                        setHeartbeatCount(c => c + 1);
-                    }, 3000);
+                    interval = setInterval(async () => {
+                        try {
+                            const controller = new AbortController();
+                            const id = setTimeout(() => controller.abort(), 2000);
+                            
+                            // Asumimos que el servidor tiene un endpoint GET /api/health
+                            const res = await fetch(`${getBaseUrl()}/health`, { 
+                                signal: controller.signal,
+                                headers: { 'Accept': 'application/json' }
+                            });
+                            clearTimeout(id);
+                            
+                            if (res.ok) {
+                                setHeartbeatCount(c => c + 1);
+                            } else {
+                                throw new Error("Status no ok");
+                            }
+                        } catch (error) {
+                            console.error("Heartbeat falló:", error);
+                            setIsConnected(false);
+                            addLog("ERROR_CONEXION", `Se perdió la conexión con ${serverIp}:${serverPort}`);
+                            alert(`Se perdió la conexión con el servidor ${serverIp}. Revisa la VPN y el servidor.`);
+                        }
+                    }, 5000); // Heartbeat cada 5 segundos
                 }
                 return () => clearInterval(interval);
-            }, [isConnected]);
+            }, [isConnected, serverIp, serverPort]);
 
-            // Sistema de Logs (Auditoría)
             const addLog = (action, details, oldData = null, newData = null) => {
-                const newLog = {
-                    id: Date.now(),
-                    timestamp: new Date().toISOString(),
-                    userRole: currentUserRole,
-                    action,
-                    details,
+                setLogs(prev => [{
+                    id: Date.now(), timestamp: new Date().toISOString(),
+                    userRole: currentUserRole, action, details,
                     diff: { old: oldData, new: newData }
-                };
-                setLogs(prev => [newLog, ...prev]);
+                }, ...prev]);
             };
 
-            const handleConnect = () => {
-                if (!serverIp) {
-                    alert("Introduce una IP válida a través de la VPN");
+            // 2. CONECTAR Y DESCARGAR DATOS REALES
+            const handleConnect = async () => {
+                if (isConnected) {
+                    setIsConnected(false);
+                    addLog("DESCONEXIÓN", `Desconectado manualmente de ${serverIp}`);
                     return;
                 }
-                setIsConnected(!isConnected);
-                addLog(isConnected ? "DESCONEXIÓN" : "CONEXIÓN", `Servidor local en ${serverIp}`);
+
+                if (!serverIp || !serverPort) {
+                    alert("Introduce una IP y puerto válidos.");
+                    return;
+                }
+
+                setIsLoading(true);
+                try {
+                    // Intento de conexión real para cargar la configuración
+                    const controller = new AbortController();
+                    const id = setTimeout(() => controller.abort(), 3000);
+                    
+                    const res = await fetch(`${getBaseUrl()}/config`, { signal: controller.signal });
+                    clearTimeout(id);
+
+                    if (!res.ok) throw new Error("El servidor respondió pero con error.");
+                    
+                    const data = await res.json(); // Se espera que devuelva el JSON completo de parámetros
+                    
+                    setModulesData(data);
+                    
+                    // Extraer llaves principales para el esquema
+                    const extractKeys = (obj, prefix = '') => {
+                        return Object.keys(obj).reduce((res, el) => {
+                            if(Array.isArray(obj[el])) return res;
+                            if(typeof obj[el] === 'object' && obj[el] !== null) {
+                                return [...res, ...extractKeys(obj[el], prefix + el + '.')];
+                            }
+                            return [...res, prefix + el];
+                        }, []);
+                    };
+                    setOriginalSchema(extractKeys(data));
+
+                    setIsConnected(true);
+                    setHeartbeatCount(0);
+                    addLog("CONEXIÓN_EXITOSA", `Conectado y datos descargados de ${serverIp}:${serverPort}`);
+
+                } catch (error) {
+                    console.error(error);
+                    alert(`No se pudo conectar a http://${serverIp}:${serverPort}/api/config\n\n1. ¿Está la VPN activa?\n2. ¿Está el servidor encendido?\n3. ¿El backend permite CORS?`);
+                    addLog("ERROR_CONEXION", `Fallo al intentar conectar con ${serverIp}`);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+
+            // 3. GUARDAR DATOS REALES (POST)
+            const handleSaveToServer = async (moduleName, newData) => {
+                const oldData = modulesData[moduleName];
+                const fullPayload = { ...modulesData, [moduleName]: newData };
+                
+                try {
+                    const res = await fetch(`${getBaseUrl()}/config`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(fullPayload)
+                    });
+
+                    if (!res.ok) throw new Error("Error al guardar en el servidor");
+                    
+                    setModulesData(fullPayload);
+                    addLog(`EDICIÓN_${moduleName.toUpperCase()}`, `Módulo actualizado en el servidor`, oldData, newData);
+                    return true; // Éxito
+                } catch (error) {
+                    alert(`Error al guardar en el servidor: ${error.message}`);
+                    return false; // Fallo
+                }
             };
 
             const hasPermission = () => ['admin', 'support'].includes(currentUserRole);
@@ -142,18 +225,17 @@
                                 JP
                             </div>
                             <div>
-                                <h1 className="font-bold text-slate-100">SoporteApp</h1>
-                                <p className="text-xs text-slate-400">Ver. Local Integrada</p>
+                                <h1 className="font-bold text-slate-100">SoporteApp PRO</h1>
+                                <p className="text-xs text-slate-400">REST API Ready</p>
                             </div>
                         </div>
 
                         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
                             {[
-                                { id: 'dashboard', icon: Icons.Dashboard, label: 'Dashboard General' },
-                                { id: 'modules', icon: Icons.Modules, label: 'Edición de Módulos' },
-                                { id: 'mapping', icon: Icons.Map, label: 'Mapeo I/O (JSON)' },
-                                { id: 'scanner', icon: Icons.Scan, label: 'Escáner de Red' },
-                                { id: 'history', icon: Icons.History, label: 'Historial / Auditoría' },
+                                { id: 'modules', icon: Icons.Modules, label: 'Gestión de Parámetros' },
+                                { id: 'mapping', icon: Icons.Map, label: 'Editor JSON Raw' },
+                                { id: 'scanner', icon: Icons.Scan, label: 'Escáner de Red (HTTP)' },
+                                { id: 'history', icon: Icons.History, label: 'Auditoría' },
                                 { id: 'settings', icon: Icons.Settings, label: 'Configuración' }
                             ].map(item => (
                                 <button
@@ -168,7 +250,7 @@
                         </nav>
                         
                         <div className="p-4 border-t border-slate-800">
-                            <p className="text-xs text-slate-500 mb-2">Rol Actual:</p>
+                            <p className="text-xs text-slate-500 mb-2">Rol de Seguridad:</p>
                             <select 
                                 value={currentUserRole} 
                                 onChange={(e) => {
@@ -177,9 +259,9 @@
                                 }}
                                 className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-200 outline-none focus:border-primary"
                             >
-                                <option value="admin">Administrador (Total)</option>
-                                <option value="support">Soporte (Limitado)</option>
-                                <option value="viewer">Lector (Solo vista)</option>
+                                <option value="admin">Admin (Lectura/Escritura)</option>
+                                <option value="support">Soporte (Lectura/Escritura)</option>
+                                <option value="viewer">Lector (Solo Vista)</option>
                             </select>
                         </div>
                     </aside>
@@ -187,40 +269,53 @@
                     {/* MAIN CONTENT */}
                     <main className="flex-1 flex flex-col h-screen relative">
                         {/* TOPBAR */}
-                        <header className="h-16 bg-panel border-b border-slate-800 flex items-center justify-between px-6 z-10">
-                            <div className="flex items-center space-x-4">
-                                <span className="text-slate-400 font-medium tracking-wide">
-                                    CONEXIÓN VPN/LOCAL
-                                </span>
-                                <div className="flex items-center space-x-2 bg-dark rounded border border-slate-700 px-2 py-1">
-                                    <Icons.Server />
-                                    <input 
-                                        type="text" 
-                                        value={serverIp}
-                                        onChange={e => setServerIp(e.target.value)}
-                                        disabled={isConnected}
-                                        placeholder="192.168.x.x / 10.x.x.x"
-                                        className="bg-transparent border-none outline-none text-slate-200 w-40 text-sm disabled:opacity-50"
-                                    />
+                        <header className="h-16 bg-panel border-b border-slate-800 flex items-center justify-between px-6 z-10 shrink-0">
+                            <div className="flex items-center space-x-3">
+                                <span className="text-slate-400 font-medium tracking-wide">TARGET</span>
+                                
+                                <div className="flex space-x-1">
+                                    <div className="flex items-center space-x-2 bg-dark rounded border border-slate-700 px-2 py-1">
+                                        <Icons.Server />
+                                        <input 
+                                            type="text" 
+                                            value={serverIp}
+                                            onChange={e => setServerIp(e.target.value)}
+                                            disabled={isConnected}
+                                            placeholder="10.8.0.x"
+                                            className="bg-transparent border-none outline-none text-slate-200 w-32 text-sm disabled:opacity-50"
+                                        />
+                                    </div>
+                                    <div className="flex items-center space-x-1 bg-dark rounded border border-slate-700 px-2 py-1">
+                                        <span className="text-slate-500">:</span>
+                                        <input 
+                                            type="text" 
+                                            value={serverPort}
+                                            onChange={e => setServerPort(e.target.value)}
+                                            disabled={isConnected}
+                                            className="bg-transparent border-none outline-none text-slate-200 w-12 text-sm disabled:opacity-50"
+                                        />
+                                    </div>
                                 </div>
+
                                 <button 
                                     onClick={handleConnect}
-                                    className={`px-4 py-1.5 rounded font-medium transition-colors ${isConnected ? 'bg-rose-500/20 text-rose-400 hover:bg-rose-500/30' : 'bg-primary/20 text-primary hover:bg-primary/30'}`}
+                                    disabled={isLoading}
+                                    className={`px-4 py-1.5 rounded font-medium transition-colors flex items-center ${isConnected ? 'bg-rose-500/20 text-rose-400 hover:bg-rose-500/30' : 'bg-primary/20 text-primary hover:bg-primary/30'}`}
                                 >
-                                    {isConnected ? 'Desconectar' : 'Conectar al Servidor'}
+                                    {isLoading ? <span className="animate-pulse">Conectando...</span> : (isConnected ? 'Desconectar' : 'Conectar y Cargar')}
                                 </button>
                             </div>
 
                             <div className="flex items-center space-x-4">
                                 {isConnected ? (
-                                    <div className="flex items-center space-x-2 text-accent">
-                                        <div className="w-3 h-3 bg-accent rounded-full pulse-dot"></div>
-                                        <span className="text-sm font-medium tracking-wider">HEARTBEAT OK ({heartbeatCount})</span>
+                                    <div className="flex items-center space-x-2 text-accent bg-accent/10 px-3 py-1 rounded-full border border-accent/20">
+                                        <div className="w-2.5 h-2.5 bg-accent rounded-full pulse-dot"></div>
+                                        <span className="text-xs font-bold tracking-wider">HEARTBEAT ({heartbeatCount})</span>
                                     </div>
                                 ) : (
-                                    <div className="flex items-center space-x-2 text-slate-500">
-                                        <div className="w-3 h-3 bg-slate-600 rounded-full"></div>
-                                        <span className="text-sm font-medium">SIN CONEXIÓN</span>
+                                    <div className="flex items-center space-x-2 text-slate-500 bg-slate-800 px-3 py-1 rounded-full">
+                                        <div className="w-2.5 h-2.5 bg-slate-600 rounded-full"></div>
+                                        <span className="text-xs font-bold">DESCONECTADO</span>
                                     </div>
                                 )}
                             </div>
@@ -228,22 +323,31 @@
 
                         {/* TAB CONTENT */}
                         <div className="flex-1 overflow-y-auto p-6 bg-darker">
-                            {activeTab === 'dashboard' && <DashboardTab modulesData={modulesData} isConnected={isConnected} />}
-                            {activeTab === 'modules' && <ModulesTab 
-                                data={modulesData} 
-                                setData={setModulesData} 
-                                globalEdit={globalEditEnabled} 
-                                canEdit={hasPermission()}
-                                addLog={addLog}
-                            />}
+                            {activeTab === 'modules' && (
+                                !isConnected ? (
+                                    <div className="flex flex-col items-center justify-center h-full text-slate-500">
+                                        <Icons.Server />
+                                        <p className="mt-4">Conéctate al servidor para cargar los parámetros.</p>
+                                    </div>
+                                ) : (
+                                    <ModulesTab 
+                                        data={modulesData} 
+                                        onSaveToServer={handleSaveToServer}
+                                        globalEdit={globalEditEnabled} 
+                                        canEdit={hasPermission()}
+                                    />
+                                )
+                            )}
                             {activeTab === 'mapping' && <MappingTab 
                                 data={modulesData} 
                                 setData={setModulesData} 
-                                schema={initialSchema}
+                                schema={originalSchema}
                                 addLog={addLog}
                                 canEdit={hasPermission()}
+                                isConnected={isConnected}
+                                baseUrl={getBaseUrl()}
                             />}
-                            {activeTab === 'scanner' && <ScannerTab setIp={setServerIp} />}
+                            {activeTab === 'scanner' && <ScannerTab setIp={setServerIp} defaultPort={serverPort} />}
                             {activeTab === 'history' && <HistoryTab logs={logs} />}
                             {activeTab === 'settings' && <SettingsTab 
                                 globalEdit={globalEditEnabled} 
@@ -259,89 +363,80 @@
 
         // --- SUB-COMPONENTES (VISTAS) ---
 
-        const DashboardTab = ({ modulesData, isConnected }) => {
-            return (
-                <div className="space-y-6">
-                    <h2 className="text-xl font-bold text-slate-100 flex items-center"><Icons.Dashboard/><span className="ml-2">Visión Global</span></h2>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {/* Server Status Card */}
-                        <div className="bg-panel rounded-xl p-5 border border-slate-700 shadow-lg">
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-slate-400 font-semibold flex items-center"><Icons.Server/><span className="ml-2">Servidor Local</span></h3>
-                                <span className={`px-2 py-1 rounded text-xs font-bold ${isConnected ? 'bg-accent/20 text-accent' : 'bg-rose-500/20 text-rose-400'}`}>
-                                    {isConnected ? 'EN LÍNEA' : 'FUERA DE LÍNEA'}
-                                </span>
-                            </div>
-                            <div className="space-y-3">
-                                <div className="flex justify-between">
-                                    <span className="text-slate-500">Versión App</span>
-                                    <span className="text-slate-200">{modulesData.Aplicacion.app_version}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-slate-500">Sesiones</span>
-                                    <span className="text-slate-200 font-mono bg-slate-800 px-2 rounded">{modulesData.Aplicacion.app_sesiones_activas}</span>
+        // 4. SOPORTE DE EDICIÓN RECURSIVA (JSON ANIDADO)
+        const RecursiveEditor = ({ data, path = [], isEditing, onChange }) => {
+            if (data === null || data === undefined) return <span className="text-slate-500 italic">null</span>;
+            
+            if (typeof data === 'object' && !Array.isArray(data)) {
+                return (
+                    <div className="w-full space-y-2 mt-1">
+                        {Object.entries(data).map(([key, value]) => (
+                            <div key={key} className="nested-border">
+                                <div className="flex flex-col sm:flex-row sm:items-start space-y-1 sm:space-y-0">
+                                    <label className="text-slate-400 text-xs font-mono font-bold sm:w-1/3 pt-1">{key}</label>
+                                    <div className="sm:w-2/3">
+                                        <RecursiveEditor 
+                                            data={value} 
+                                            path={[...path, key]} 
+                                            isEditing={isEditing} 
+                                            onChange={onChange} 
+                                        />
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-
-                        {/* Parking Status Card */}
-                        <div className="bg-panel rounded-xl p-5 border border-slate-700 shadow-lg">
-                            <h3 className="text-slate-400 font-semibold mb-4 flex items-center">
-                                <svg className="w-5 h-5 ml-1 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"></path></svg>
-                                Estacionamiento
-                            </h3>
-                            <div className="mb-4">
-                                <div className="flex justify-between mb-1 text-sm">
-                                    <span className="text-slate-400">Ocupación</span>
-                                    <span className="text-slate-200">{modulesData.Estacionamiento.estacionamiento_ocupacion} / {modulesData.Estacionamiento.estacionamiento_capacidad}</span>
-                                </div>
-                                <div className="w-full bg-slate-800 rounded-full h-2.5">
-                                    <div className="bg-primary h-2.5 rounded-full" style={{width: `${(modulesData.Estacionamiento.estacionamiento_ocupacion / modulesData.Estacionamiento.estacionamiento_capacidad) * 100}%`}}></div>
-                                </div>
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-slate-500">Estado Barrera Principal</span>
-                                <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${modulesData.Estacionamiento.barrera_estado === 'abierta' ? 'bg-accent/20 text-accent' : 'bg-yellow-500/20 text-yellow-500'}`}>
-                                    {modulesData.Estacionamiento.barrera_estado}
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* Cloud Sync Card */}
-                        <div className="bg-panel rounded-xl p-5 border border-slate-700 shadow-lg">
-                            <h3 className="text-slate-400 font-semibold mb-4 flex items-center"><Icons.Cloud/><span className="ml-2">Estado Nube</span></h3>
-                            <div className="space-y-3">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-slate-500">Última Sincronización</span>
-                                    <span className="text-slate-300 text-xs">{modulesData.Red_y_Nube.nube_ultima_sync}</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-slate-500">Túnel VPN</span>
-                                    <span className="text-accent flex items-center"><Icons.Check/> <span className="ml-1 uppercase text-xs font-bold">{modulesData.Red_y_Nube.vpn_activa}</span></span>
-                                </div>
-                            </div>
-                        </div>
+                        ))}
                     </div>
-                </div>
+                );
+            }
+
+            // Para valores primitivos (strings, numbers, booleans)
+            if (isEditing) {
+                // Si es booleano, mostrar selector
+                if (typeof data === 'boolean') {
+                    return (
+                        <select 
+                            value={data.toString()}
+                            onChange={(e) => onChange(path, e.target.value)}
+                            className="bg-darker border border-primary/50 rounded px-2 py-1 text-slate-200 focus:border-primary outline-none font-mono text-sm w-full"
+                        >
+                            <option value="true">true</option>
+                            <option value="false">false</option>
+                        </select>
+                    )
+                }
+
+                return (
+                    <input 
+                        type={typeof data === 'number' ? "number" : "text"} 
+                        value={data} 
+                        onChange={(e) => onChange(path, e.target.value)}
+                        className="bg-darker border border-primary/50 rounded px-2 py-1 text-slate-200 focus:border-primary outline-none font-mono text-sm w-full"
+                    />
+                );
+            }
+
+            // Vista de Lectura
+            return (
+                <span className={`font-mono text-sm px-2 py-1 rounded block truncate ${typeof data === 'boolean' ? (data ? 'text-accent' : 'text-rose-400') : typeof data === 'number' ? 'text-blue-400' : 'text-slate-200 bg-slate-800/50'}`}>
+                    {data.toString()}
+                </span>
             );
         };
 
-        const ModulesTab = ({ data, setData, globalEdit, canEdit, addLog }) => {
+        const ModulesTab = ({ data, onSaveToServer, globalEdit, canEdit }) => {
+            if(Object.keys(data).length === 0) return <div>No hay módulos.</div>;
+
             return (
                 <div className="space-y-6">
-                    <div className="flex justify-between items-center">
-                        <h2 className="text-xl font-bold text-slate-100 flex items-center"><Icons.Modules/><span className="ml-2">Edición de Módulos</span></h2>
-                        {!globalEdit && (
-                            <span className="text-rose-400 text-xs bg-rose-500/10 px-2 py-1 rounded border border-rose-500/20 flex items-center">
-                                <Icons.Alert/><span className="ml-1">Edición global deshabilitada en Configuración</span>
-                            </span>
-                        )}
-                        {!canEdit && globalEdit && (
-                            <span className="text-yellow-400 text-xs bg-yellow-500/10 px-2 py-1 rounded border border-yellow-500/20">
-                                Permisos insuficientes (Modo Lector)
-                            </span>
-                        )}
+                    <div className="flex justify-between items-center bg-slate-800 p-4 rounded-xl border border-slate-700">
+                        <div>
+                            <h2 className="text-lg font-bold text-slate-100 flex items-center"><Icons.Modules/><span className="ml-2">Editor Visual de Módulos</span></h2>
+                            <p className="text-xs text-slate-400">Los cambios se envían directamente al servidor mediante POST /api/config</p>
+                        </div>
+                        <div className="flex space-x-2">
+                            {!globalEdit && <span className="text-rose-400 text-xs bg-rose-500/10 px-2 py-1 rounded border border-rose-500/20">Edición bloqueada</span>}
+                            {!canEdit && <span className="text-yellow-400 text-xs bg-yellow-500/10 px-2 py-1 rounded border border-yellow-500/20">Modo Lector</span>}
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -350,11 +445,7 @@
                                 key={moduleName}
                                 name={moduleName}
                                 initialData={moduleData}
-                                onSave={(newData) => {
-                                    const oldData = {...data[moduleName]};
-                                    setData(prev => ({...prev, [moduleName]: newData}));
-                                    addLog(`EDICIÓN_MÓDULO`, `Módulo ${moduleName} actualizado`, oldData, newData);
-                                }}
+                                onSaveToServer={onSaveToServer}
                                 globalEdit={globalEdit}
                                 canEdit={canEdit}
                             />
@@ -364,87 +455,66 @@
             );
         };
 
-        const ModuleCard = ({ name, initialData, onSave, globalEdit, canEdit }) => {
+        const ModuleCard = ({ name, initialData, onSaveToServer, globalEdit, canEdit }) => {
             const [isEditing, setIsEditing] = useState(false);
             const [editData, setEditData] = useState(initialData);
-            const [error, setError] = useState('');
+            const [isSaving, setIsSaving] = useState(false);
 
-            // Resetear data si cancelan
-            useEffect(() => { setEditData(initialData); }, [initialData, isEditing]);
+            useEffect(() => { setEditData(deepClone(initialData)); }, [initialData, isEditing]);
 
-            const handleSave = () => {
-                // Mock: 52 mil validaciones
-                for (const [key, value] of Object.entries(editData)) {
-                    if (value === '') {
-                        setError(`El campo ${key} no puede estar vacío.`);
-                        return;
-                    }
-                    if (key.includes('capacidad') && isNaN(value)) {
-                        setError(`Capacidad debe ser un número válido.`);
-                        return;
-                    }
-                }
-                setError('');
-                onSave(editData);
-                setIsEditing(false);
+            const handleFieldChange = (path, value) => {
+                setEditData(prev => setNestedValue(prev, path, value));
             };
 
-            const handleChange = (k, v) => {
-                setEditData(prev => ({...prev, [k]: v}));
+            const handleSave = async () => {
+                setIsSaving(true);
+                const success = await onSaveToServer(name, editData);
+                setIsSaving(false);
+                if (success) setIsEditing(false);
             };
 
             const isEditable = globalEdit && canEdit;
 
             return (
-                <div className="bg-panel border border-slate-700 rounded-xl overflow-hidden shadow-lg transition-all">
-                    <div className="bg-slate-800/50 px-4 py-3 border-b border-slate-700 flex justify-between items-center">
-                        <h3 className="font-bold text-slate-200 capitalize">{name.replace(/_/g, ' ')}</h3>
+                <div className={`bg-panel border rounded-xl overflow-hidden shadow-lg transition-all ${isEditing ? 'border-primary ring-1 ring-primary/50' : 'border-slate-700'}`}>
+                    <div className="bg-slate-800/80 px-4 py-3 border-b border-slate-700 flex justify-between items-center">
+                        <h3 className="font-bold text-slate-200">{name}</h3>
                         {!isEditing ? (
                             <button 
                                 onClick={() => setIsEditing(true)}
                                 disabled={!isEditable}
-                                className={`text-xs px-3 py-1 rounded transition-colors ${isEditable ? 'bg-primary/20 text-primary hover:bg-primary/40' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}`}
+                                className={`text-xs px-3 py-1.5 rounded font-medium transition-colors ${isEditable ? 'bg-primary/20 text-primary hover:bg-primary/40' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}`}
                             >
-                                Habilitar Cambios
+                                Modificar
                             </button>
                         ) : (
-                            <span className="text-xs text-accent font-bold animate-pulse">Modo Edición...</span>
+                            <span className="text-xs bg-primary text-white px-2 py-1 rounded font-bold animate-pulse">Editando...</span>
                         )}
                     </div>
                     
-                    <div className="p-4 space-y-3">
-                        {error && <div className="bg-rose-500/10 border border-rose-500 text-rose-400 text-xs p-2 rounded">{error}</div>}
-                        
-                        {Object.entries(isEditing ? editData : initialData).map(([k, v]) => (
-                            <div key={k} className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-1 sm:space-y-0">
-                                <label className="text-slate-400 text-xs font-mono">{k}</label>
-                                {isEditing ? (
-                                    <input 
-                                        type="text" 
-                                        value={v} 
-                                        onChange={(e) => handleChange(k, e.target.value)}
-                                        className="bg-darker border border-slate-600 rounded px-2 py-1 text-slate-200 focus:border-primary outline-none font-mono text-sm sm:w-1/2"
-                                    />
-                                ) : (
-                                    <span className="text-slate-200 font-mono text-sm bg-slate-800/50 px-2 py-1 rounded sm:w-1/2 truncate text-right">{v}</span>
-                                )}
-                            </div>
-                        ))}
+                    <div className="p-4 overflow-x-auto max-h-[500px] overflow-y-auto">
+                        <RecursiveEditor 
+                            data={isEditing ? editData : initialData} 
+                            isEditing={isEditing} 
+                            onChange={handleFieldChange} 
+                        />
                     </div>
 
                     {isEditing && (
-                        <div className="bg-slate-800/50 px-4 py-3 border-t border-slate-700 flex justify-end space-x-2">
+                        <div className="bg-slate-800/80 px-4 py-3 border-t border-slate-700 flex justify-end space-x-2">
                             <button 
-                                onClick={() => { setIsEditing(false); setError(''); }}
-                                className="flex items-center space-x-1 text-xs px-3 py-1.5 rounded bg-slate-700 text-slate-300 hover:bg-slate-600"
+                                onClick={() => setIsEditing(false)}
+                                disabled={isSaving}
+                                className="flex items-center space-x-1 text-xs px-4 py-2 rounded border border-slate-600 text-slate-300 hover:bg-slate-700 disabled:opacity-50"
                             >
-                                <Icons.X /> <span>Cancelar</span>
+                                <span>Cancelar</span>
                             </button>
                             <button 
                                 onClick={handleSave}
-                                className="flex items-center space-x-1 text-xs px-3 py-1.5 rounded bg-accent text-darker font-bold hover:bg-emerald-400"
+                                disabled={isSaving}
+                                className="flex items-center space-x-1 text-xs px-4 py-2 rounded bg-accent text-darker font-bold hover:bg-emerald-400 disabled:opacity-50"
                             >
-                                <Icons.Check /> <span>Guardar Cambios</span>
+                                {isSaving ? <span>Enviando...</span> : <><Icons.Check /> <span>Guardar en Servidor</span></>}
                             </button>
                         </div>
                     )}
@@ -452,69 +522,56 @@
             );
         };
 
-        const MappingTab = ({ data, setData, schema, addLog, canEdit }) => {
-            // Aplanar data para el JSON
-            const flattenData = () => {
-                let flat = {};
-                Object.values(data).forEach(mod => { flat = {...flat, ...mod} });
-                return JSON.stringify(flat, null, 4);
-            };
-
-            const [jsonText, setJsonText] = useState(flattenData());
+        const MappingTab = ({ data, setData, schema, addLog, canEdit, isConnected, baseUrl }) => {
+            const [jsonText, setJsonText] = useState('');
             const [status, setStatus] = useState({ type: '', msg: '' });
-            const [unrecognized, setUnrecognized] = useState([]);
 
             useEffect(() => {
-                // Actualizar textarea si la data cambia desde otro lado
-                setJsonText(flattenData());
+                setJsonText(JSON.stringify(data, null, 4));
             }, [data]);
 
-            const handleTestMapeo = () => {
+            const handlePushToSever = async () => {
                 if (!canEdit) {
-                    setStatus({ type: 'error', msg: 'Permisos insuficientes para mapear parámetros.' });
+                    setStatus({ type: 'error', msg: 'Permisos insuficientes.' });
                     return;
                 }
+                
                 try {
                     const parsed = JSON.parse(jsonText);
-                    const incomingKeys = Object.keys(parsed);
                     
-                    // Buscar desconocidos/obsoletos
-                    const unknown = incomingKeys.filter(k => !schema.includes(k));
-                    setUnrecognized(unknown);
-
-                    if (unknown.length > 0) {
-                        setStatus({ type: 'warning', msg: `Se encontraron ${unknown.length} parámetros desconocidos/obsoletos.` });
-                    } else {
-                        setStatus({ type: 'success', msg: 'JSON válido. Todos los parámetros reconocidos.' });
-                    }
-
-                    // Reconstruir estructura de módulos (lógica simple para el mockup)
-                    const newData = JSON.parse(JSON.stringify(data)); // deep copy
-                    let updatedCount = 0;
+                    setStatus({ type: 'warning', msg: 'Enviando configuración completa al servidor...' });
                     
-                    Object.keys(newData).forEach(modName => {
-                        Object.keys(newData[modName]).forEach(key => {
-                            if (parsed[key] !== undefined) {
-                                newData[modName][key] = parsed[key];
-                                updatedCount++;
-                            }
-                        });
+                    const res = await fetch(`${baseUrl}/config`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(parsed)
                     });
 
-                    setData(newData);
-                    addLog('MAPEO_JSON', `Importación JSON: ${updatedCount} actualizados, ${unknown.length} desconocidos ignorados.`);
+                    if (!res.ok) throw new Error("Rechazado por el servidor.");
+
+                    setData(parsed);
+                    setStatus({ type: 'success', msg: 'Payload inyectado con éxito en el servidor.' });
+                    addLog('INYECCION_JSON', `Se sobrescribió toda la configuración vía raw JSON.`);
 
                 } catch (e) {
-                    setStatus({ type: 'error', msg: 'Error de sintaxis JSON: ' + e.message });
+                    setStatus({ type: 'error', msg: 'Error JSON o de Red: ' + e.message });
                 }
             };
 
             return (
                 <div className="space-y-4 flex flex-col h-full">
-                    <h2 className="text-xl font-bold text-slate-100 flex items-center"><Icons.Map/><span className="ml-2">Mapeo I/O de Parámetros</span></h2>
-                    <p className="text-slate-400 text-sm">
-                        Solicita a Edbin/Servidor un JSON estructurado para probar el mapeo. Pega el JSON aquí y el sistema identificará versiones anteriores o parámetros obsoletos.
-                    </p>
+                    <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                        <h2 className="text-xl font-bold text-slate-100 flex items-center"><Icons.Map/><span className="ml-2">Editor Raw (Payload Completo)</span></h2>
+                        <p className="text-slate-400 text-sm mt-1">
+                            Aquí puedes pegar un archivo completo enviado por los ingenieros y hacer un push directo.
+                        </p>
+                    </div>
+
+                    {!isConnected && (
+                        <div className="bg-rose-500/20 border border-rose-500 text-rose-400 p-3 rounded text-sm">
+                            Atención: No estás conectado a un servidor real. Los cambios solo se aplicarán a la vista local temporal.
+                        </div>
+                    )}
 
                     {status.msg && (
                         <div className={`p-3 rounded border text-sm ${status.type === 'error' ? 'bg-rose-500/10 border-rose-500 text-rose-400' : status.type === 'warning' ? 'bg-yellow-500/10 border-yellow-500 text-yellow-400' : 'bg-accent/10 border-accent text-accent'}`}>
@@ -522,124 +579,147 @@
                         </div>
                     )}
 
-                    {unrecognized.length > 0 && (
-                        <div className="bg-darker border border-yellow-500/30 rounded p-3">
-                            <h4 className="text-yellow-500 text-xs font-bold uppercase mb-2 flex items-center"><Icons.Alert/><span className="ml-1">Parámetros Obsoletos/Desconocidos Detectados:</span></h4>
-                            <div className="flex flex-wrap gap-2">
-                                {unrecognized.map(k => (
-                                    <span key={k} className="bg-yellow-500/20 text-yellow-300 text-xs font-mono px-2 py-1 rounded border border-yellow-500/50">
-                                        {k}
-                                    </span>
-                                ))}
-                            </div>
-                            <p className="text-xs text-slate-500 mt-2">El servidor local rechazará estos parámetros al guardar, pero la vista de soporte permite verlos.</p>
-                        </div>
-                    )}
-
-                    <div className="flex-1 min-h-[300px] flex flex-col">
+                    <div className="flex-1 min-h-[400px] flex flex-col">
                         <textarea 
                             value={jsonText}
                             onChange={(e) => setJsonText(e.target.value)}
-                            className="flex-1 w-full bg-slate-900 border border-slate-700 rounded-lg p-4 font-mono text-sm text-primary outline-none focus:border-primary resize-none"
-                            placeholder="Pega el JSON aquí..."
+                            className="flex-1 w-full bg-dark border border-slate-700 rounded-lg p-4 font-mono text-sm text-blue-300 outline-none focus:border-primary resize-none whitespace-pre"
+                            spellCheck="false"
                         />
                     </div>
                     
                     <div className="flex justify-end space-x-3">
                         <button 
-                            onClick={() => {setJsonText(flattenData()); setStatus({type:'',msg:''}); setUnrecognized([]);}}
-                            className="px-4 py-2 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 text-sm"
+                            onClick={() => {setJsonText(JSON.stringify(data, null, 4)); setStatus({type:'',msg:''});}}
+                            className="px-4 py-2 rounded border border-slate-600 text-slate-300 hover:bg-slate-800 text-sm"
                         >
-                            Resetear al Estado Actual
+                            Restaurar
                         </button>
                         <button 
-                            onClick={handleTestMapeo}
-                            className="px-4 py-2 rounded bg-primary text-white font-bold hover:bg-blue-600 text-sm flex items-center"
+                            onClick={handlePushToSever}
+                            disabled={!isConnected}
+                            className="px-4 py-2 rounded bg-rose-600 text-white font-bold hover:bg-rose-500 text-sm flex items-center disabled:opacity-50"
                         >
-                            <Icons.Check/> <span className="ml-2">Probar y Aplicar Mapeo</span>
+                            <Icons.Alert/> <span className="ml-2">Push Force al Servidor</span>
                         </button>
                     </div>
                 </div>
             );
         };
 
-        const ScannerTab = ({ setIp }) => {
+        // 5. ESCÁNER DE RED REAL (Basado en HTTP Fetch)
+        const ScannerTab = ({ setIp, defaultPort }) => {
             const [scanning, setScanning] = useState(false);
             const [results, setResults] = useState([]);
+            const [baseIp, setBaseIp] = useState('10.8.0.');
             const [progress, setProgress] = useState(0);
-
-            const handleScan = () => {
+            
+            // Limitación de navegador: Solo podemos "escanear" intentando hacer un GET request 
+            // y viendo si responde rápido. Si da timeout, no hay nada.
+            const handleScan = async () => {
                 setScanning(true);
                 setResults([]);
                 setProgress(0);
 
-                // Simulación inteligente de escaneo
-                let p = 0;
-                const interval = setInterval(() => {
-                    p += 15;
-                    setProgress(p > 100 ? 100 : p);
-                    
-                    if (p === 30) {
-                        setResults(r => [...r, { ip: '10.8.0.12', type: 'Gateway', conf: 'Baja' }]);
-                    }
-                    if (p === 75) {
-                        setResults(r => [...r, { ip: '10.8.0.45', type: 'Servidor Local Estacionamiento', conf: 'Alta (Match Heurístico)' }]);
-                    }
+                const activeIps = [];
+                const maxRange = 254;
+                const batchSize = 10; // Escanear de 10 en 10 para no colapsar el navegador
 
-                    if (p >= 100) {
-                        clearInterval(interval);
-                        setScanning(false);
+                for (let i = 1; i <= maxRange; i += batchSize) {
+                    if (!scanning && i > 1) break; // Allow cancel
+                    
+                    const promises = [];
+                    for(let j = 0; j < batchSize && (i+j) <= maxRange; j++) {
+                        const targetIp = `${baseIp}${i+j}`;
+                        promises.push(
+                            (async () => {
+                                try {
+                                    const controller = new AbortController();
+                                    const id = setTimeout(() => controller.abort(), 800); // Timeout ultra corto
+                                    // Intenta el endpoint de health
+                                    const res = await fetch(`http://${targetIp}:${defaultPort}/api/health`, { 
+                                        mode: 'no-cors', // Evita errores de CORS en el intento de ping
+                                        signal: controller.signal 
+                                    });
+                                    clearTimeout(id);
+                                    // Si no dio excepción de red o timeout, hay *algo* web ahí
+                                    activeIps.push({ ip: targetIp, status: 'Encontrado' });
+                                } catch (e) {
+                                    // Timeout o Connection Refused -> Ignorar
+                                }
+                            })()
+                        );
                     }
-                }, 500);
+                    await Promise.all(promises);
+                    setProgress(Math.round(((i + batchSize) / maxRange) * 100));
+                    setResults([...activeIps]);
+                }
+
+                setScanning(false);
+                setProgress(100);
             };
 
             return (
                 <div className="space-y-6 max-w-3xl">
-                    <h2 className="text-xl font-bold text-slate-100 flex items-center"><Icons.Scan/><span className="ml-2">Identificador Inteligente de Red</span></h2>
+                    <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                        <h2 className="text-xl font-bold text-slate-100 flex items-center"><Icons.Scan/><span className="ml-2">Escáner de Subred (HTTP)</span></h2>
+                        <p className="text-slate-400 mt-2 text-sm">
+                            El navegador no puede hacer PING (ICMP). Este escáner intenta hacer peticiones HTTP asíncronas ultrarrápidas en el puerto <strong className="text-primary">{defaultPort}</strong>.
+                        </p>
+                    </div>
                     
                     <div className="bg-panel border border-slate-700 rounded-xl p-6">
-                        <p className="text-slate-400 mb-4 text-sm">
-                            Realiza un barrido en el rango de la VPN y subredes locales para encontrar automáticamente la instancia del servidor.
-                        </p>
-
-                        <button 
-                            onClick={handleScan}
-                            disabled={scanning}
-                            className={`w-full py-3 rounded-lg font-bold flex justify-center items-center ${scanning ? 'bg-slate-700 text-slate-400 cursor-wait' : 'bg-primary text-white hover:bg-blue-600'}`}
-                        >
-                            {scanning ? (
-                                <><div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin mr-2"></div> Escaneando...</>
-                            ) : (
-                                <><Icons.Scan/><span className="ml-2">Iniciar Escaneo</span></>
-                            )}
-                        </button>
+                        <div className="flex space-x-3 mb-6">
+                            <div className="flex-1">
+                                <label className="text-xs text-slate-400 block mb-1">Subred a escanear (Ej: 10.8.0. / 192.168.1.)</label>
+                                <input 
+                                    type="text" 
+                                    value={baseIp} 
+                                    onChange={(e) => setBaseIp(e.target.value)}
+                                    disabled={scanning}
+                                    className="w-full bg-dark border border-slate-600 rounded px-3 py-2 text-slate-200 focus:border-primary outline-none"
+                                />
+                            </div>
+                            <div className="flex items-end">
+                                <button 
+                                    onClick={handleScan}
+                                    disabled={scanning}
+                                    className={`px-6 py-2 rounded font-bold flex justify-center items-center ${scanning ? 'bg-slate-700 text-slate-400 cursor-wait' : 'bg-primary text-white hover:bg-blue-600'}`}
+                                >
+                                    {scanning ? 'Escaneando...' : 'Iniciar Barrido'}
+                                </button>
+                            </div>
+                        </div>
 
                         {scanning && (
-                            <div className="mt-4 h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-                                <div className="h-full bg-accent transition-all duration-300" style={{width: `${progress}%`}}></div>
+                            <div className="mb-4">
+                                <div className="flex justify-between text-xs text-slate-400 mb-1">
+                                    <span>Progreso</span>
+                                    <span>{progress}%</span>
+                                </div>
+                                <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                                    <div className="h-full bg-primary transition-all duration-200" style={{width: `${progress}%`}}></div>
+                                </div>
                             </div>
                         )}
 
-                        {results.length > 0 && (
-                            <div className="mt-6 space-y-3">
-                                <h4 className="text-slate-200 font-semibold border-b border-slate-700 pb-2">Resultados ({results.length}):</h4>
-                                {results.map((res, i) => (
-                                    <div key={i} className="flex justify-between items-center bg-darker p-3 rounded border border-slate-800 hover:border-primary transition-colors cursor-pointer group" onClick={() => setIp(res.ip)}>
-                                        <div>
-                                            <div className="font-mono text-primary font-bold">{res.ip}</div>
-                                            <div className="text-xs text-slate-500">{res.type}</div>
-                                        </div>
-                                        <div className="text-right">
-                                            <div className="text-xs text-slate-400">Confianza</div>
-                                            <div className={`text-xs font-bold ${res.conf.includes('Alta') ? 'text-accent' : 'text-yellow-500'}`}>{res.conf}</div>
-                                        </div>
-                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded">Usar IP</span>
-                                        </div>
+                        <div className="space-y-3 mt-4">
+                            <h4 className="text-slate-200 font-semibold border-b border-slate-700 pb-2">Servidores Posibles ({results.length}):</h4>
+                            {results.length === 0 && !scanning && progress === 100 && (
+                                <p className="text-rose-400 text-sm">No se encontraron servicios web en este rango. Verifica la VPN o el puerto.</p>
+                            )}
+                            {results.map((res, i) => (
+                                <div key={i} className="flex justify-between items-center bg-dark p-3 rounded border border-slate-700 hover:border-primary transition-colors cursor-pointer group" onClick={() => setIp(res.ip)}>
+                                    <div className="flex items-center">
+                                        <div className="w-2 h-2 bg-accent rounded-full mr-3"></div>
+                                        <div className="font-mono text-primary font-bold text-lg">{res.ip}</div>
                                     </div>
-                                ))}
-                            </div>
-                        )}
+                                    <div className="opacity-50 group-hover:opacity-100 transition-opacity">
+                                        <span className="text-sm bg-primary/20 text-primary px-3 py-1 rounded">Usar IP</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             );
@@ -648,40 +728,29 @@
         const HistoryTab = ({ logs }) => {
             return (
                 <div className="space-y-4 flex flex-col h-full">
-                    <h2 className="text-xl font-bold text-slate-100 flex items-center"><Icons.History/><span className="ml-2">Auditoría y Log de Acciones</span></h2>
+                    <h2 className="text-xl font-bold text-slate-100 flex items-center"><Icons.History/><span className="ml-2">Registro de Auditoría Local</span></h2>
                     
                     <div className="flex-1 bg-panel border border-slate-700 rounded-xl overflow-hidden flex flex-col">
                         <div className="overflow-x-auto">
                             <table className="w-full text-left text-sm">
-                                <thead className="bg-slate-800 text-slate-400 uppercase text-xs">
+                                <thead className="bg-slate-800 text-slate-400 uppercase text-xs border-b border-slate-700">
                                     <tr>
-                                        <th className="px-4 py-3">Timestamp</th>
-                                        <th className="px-4 py-3">Usuario/Rol</th>
-                                        <th className="px-4 py-3">Acción</th>
-                                        <th className="px-4 py-3">Detalle (Human-Readable)</th>
-                                        <th className="px-4 py-3">Machine Data (JSON)</th>
+                                        <th className="px-4 py-3">Hora</th>
+                                        <th className="px-4 py-3">Rol</th>
+                                        <th className="px-4 py-3">Evento</th>
+                                        <th className="px-4 py-3">Detalle</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-800">
                                     {logs.length === 0 ? (
-                                        <tr><td colSpan="5" className="text-center py-8 text-slate-500">No hay acciones registradas en esta sesión.</td></tr>
+                                        <tr><td colSpan="4" className="text-center py-8 text-slate-500">No hay registros generados.</td></tr>
                                     ) : (
                                         logs.map(log => (
-                                            <tr key={log.id} className="hover:bg-slate-800/50 transition-colors">
-                                                <td className="px-4 py-3 font-mono text-xs text-slate-500">{new Date(log.timestamp).toLocaleTimeString()}</td>
-                                                <td className="px-4 py-3"><span className="bg-slate-800 px-2 py-1 rounded text-xs text-primary font-bold uppercase">{log.userRole}</span></td>
-                                                <td className="px-4 py-3 font-bold text-slate-300">{log.action}</td>
-                                                <td className="px-4 py-3 text-slate-400">{log.details}</td>
-                                                <td className="px-4 py-3">
-                                                    {log.diff.new ? (
-                                                        <details className="text-xs">
-                                                            <summary className="cursor-pointer text-primary hover:text-blue-400">Ver JSON Diff</summary>
-                                                            <div className="mt-2 p-2 bg-darker rounded overflow-x-auto max-w-xs font-mono text-emerald-400 whitespace-pre">
-                                                                {JSON.stringify(log.diff.new, null, 2)}
-                                                            </div>
-                                                        </details>
-                                                    ) : <span className="text-slate-600 text-xs">N/A</span>}
-                                                </td>
+                                            <tr key={log.id} className="hover:bg-slate-800/50">
+                                                <td className="px-4 py-3 font-mono text-xs text-slate-500 whitespace-nowrap">{new Date(log.timestamp).toLocaleTimeString()}</td>
+                                                <td className="px-4 py-3"><span className="bg-slate-800 px-2 py-1 rounded text-[10px] text-slate-300 uppercase">{log.userRole}</span></td>
+                                                <td className="px-4 py-3 font-bold text-slate-300 text-xs">{log.action}</td>
+                                                <td className="px-4 py-3 text-slate-400 text-xs">{log.details}</td>
                                             </tr>
                                         ))
                                     )}
@@ -696,14 +765,13 @@
         const SettingsTab = ({ globalEdit, setGlobalEdit, canEdit, addLog }) => {
             return (
                 <div className="space-y-6 max-w-2xl">
-                    <h2 className="text-xl font-bold text-slate-100 flex items-center"><Icons.Settings/><span className="ml-2">Configuración del Panel</span></h2>
+                    <h2 className="text-xl font-bold text-slate-100 flex items-center"><Icons.Settings/><span className="ml-2">Ajustes de Interfaz</span></h2>
                     
                     <div className="bg-panel border border-slate-700 rounded-xl p-6 space-y-6">
-                        
-                        <div className="flex items-center justify-between border-b border-slate-800 pb-6">
+                        <div className="flex items-center justify-between">
                             <div>
-                                <h3 className="text-slate-200 font-bold text-base">Habilitar Edición de Módulos (Global)</h3>
-                                <p className="text-slate-500 text-sm mt-1">Permite que los botones de edición en cada módulo se activen. Si se apaga, toda la webapp es de solo lectura.</p>
+                                <h3 className="text-slate-200 font-bold text-base">Edición Global Permitida</h3>
+                                <p className="text-slate-500 text-sm mt-1">Habilita los botones de modificación en todos los módulos de la aplicación.</p>
                             </div>
                             <label className="relative inline-flex items-center cursor-pointer">
                                 <input 
@@ -713,34 +781,37 @@
                                     disabled={!canEdit}
                                     onChange={(e) => {
                                         setGlobalEdit(e.target.checked);
-                                        addLog("CONFIG_SISTEMA", `Edición Global cambiada a: ${e.target.checked ? 'ACTIVO' : 'INACTIVO'}`);
+                                        addLog("CONFIG_SISTEMA", `Edición global: ${e.target.checked}`);
                                     }}
                                 />
                                 <div className={`w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${globalEdit ? 'bg-primary' : ''} ${!canEdit ? 'opacity-50 cursor-not-allowed' : ''}`}></div>
                             </label>
                         </div>
+                    </div>
 
-                        {!canEdit && (
-                            <div className="bg-rose-500/10 border border-rose-500 p-3 rounded flex items-start space-x-3 text-rose-400 text-sm">
-                                <Icons.Alert />
-                                <span>No tienes permisos para modificar la configuración global. Debes tener el rol de Administrador.</span>
-                            </div>
-                        )}
+                    <div className="bg-darker border border-slate-800 rounded-xl p-6">
+                        <h3 className="text-primary font-bold mb-2">Instrucciones Backend (CORS)</h3>
+                        <p className="text-slate-400 text-sm leading-relaxed mb-2">
+                            Dado que esta App se ejecuta desde un archivo local (`file:///`), el servidor backend local debe responder a los métodos OPTIONS, GET y POST permitiendo <strong>CORS</strong>.
+                        </p>
+                        <pre className="bg-black p-3 rounded text-xs text-emerald-400 overflow-x-auto">
+{`// Ejemplo Node.js (Express)
+app.use(cors({
+    origin: '*', 
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Accept']
+}));
 
-                        <div>
-                            <h3 className="text-slate-200 font-bold text-base mb-2">Acerca de esta Herramienta</h3>
-                            <p className="text-slate-400 text-sm leading-relaxed">
-                                Aplicación de soporte local offline. Desarrollada en un único archivo HTML portatil.<br/>
-                                <strong>Funciones base:</strong> Interceptador de VPN, Validador JSON de parámetros en tiempo real, Historial Machine-Readable para depuración de estados.
-                            </p>
-                        </div>
-
+// Endpoints esperados:
+// GET  /api/health (Retorna status 200)
+// GET  /api/config (Retorna el JSON completo de config)
+// POST /api/config (Recibe el JSON y actualiza el servidor)`}
+                        </pre>
                     </div>
                 </div>
             );
         };
 
-        // Renderizar la App
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
