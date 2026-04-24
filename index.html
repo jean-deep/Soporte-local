@@ -3,749 +3,746 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Compartir Archivos P2P</title>
-    <!-- Tailwind CSS para los estilos -->
+    <title>Webapp de Soporte Local - Servidor</title>
+    
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- PeerJS para las conexiones P2P -->
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: '#0f172a',
+                        darker: '#020617',
+                        panel: '#1e293b',
+                        primary: '#3b82f6',
+                        accent: '#10b981'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel para compilar JSX en el navegador -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
     <style>
-        /* Estilos personalizados básicos */
-        body { background-color: #f3f4f6; }
-        .drag-over { border-color: #3b82f6; background-color: #eff6ff; }
+        body { background-color: #0f172a; color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        .pulse-dot { animation: pulse 2s infinite; }
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
     </style>
 </head>
-<body class="text-gray-800 font-sans h-screen flex flex-col">
+<body>
+    <div id="root"></div>
 
-    <!-- Pantalla de Inicio (Crear / Unirse) -->
-    <div id="screen-login" class="flex-1 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 text-center">
-            <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <i data-lucide="share-2" class="w-8 h-8"></i>
-            </div>
-            <h1 class="text-2xl font-bold mb-2">Red Local P2P</h1>
-            <p class="text-gray-500 mb-6 text-sm">Comparte archivos y carpetas directamente con otras personas, sin servidores intermedios.</p>
-            
-            <div class="mb-4 text-left">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Tu Nombre</label>
-                <input type="text" id="username" placeholder="Ej: Carlos" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
-            </div>
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
 
-            <div class="grid grid-cols-2 gap-4 mt-6">
-                <button onclick="createRoom()" class="flex flex-col items-center justify-center p-4 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl transition-colors">
-                    <i data-lucide="users" class="w-6 h-6 text-blue-600 mb-2"></i>
-                    <span class="font-semibold text-blue-800 text-sm">Crear Grupo</span>
-                </button>
-                <button onclick="showJoinInput()" class="flex flex-col items-center justify-center p-4 bg-green-50 hover:bg-green-100 border border-green-200 rounded-xl transition-colors">
-                    <i data-lucide="log-in" class="w-6 h-6 text-green-600 mb-2"></i>
-                    <span class="font-semibold text-green-800 text-sm">Unirse a Grupo</span>
-                </button>
-            </div>
+        // --- ICONOS SVG ---
+        const Icons = {
+            Dashboard: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>,
+            Modules: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>,
+            Map: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path></svg>,
+            Scan: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path></svg>,
+            History: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>,
+            Settings: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>,
+            Server: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"></path></svg>,
+            Cloud: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>,
+            Check: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>,
+            X: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>,
+            Alert: () => <svg className="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+        };
 
-            <div id="join-section" class="hidden mt-4 text-left animate-fade-in">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Código del Grupo</label>
-                <div class="flex gap-2">
-                    <input type="text" id="room-code" placeholder="Código de 6 letras" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none uppercase">
-                    <button onclick="joinRoom()" class="px-4 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700">Entrar</button>
-                </div>
-            </div>
-            
-            <p id="login-error" class="text-red-500 text-sm mt-4 hidden"></p>
-        </div>
-    </div>
-
-    <!-- Pantalla Principal de la Sala -->
-    <div id="screen-room" class="hidden h-screen flex flex-col md:flex-row w-full max-w-7xl mx-auto">
+        // --- DATOS INICIALES MOCKEADOS ---
+        const initialSchema = ['estacionamiento_capacidad', 'estacionamiento_ocupacion', 'barrera_estado', 'app_version', 'app_sesiones_activas', 'nube_ultima_sync', 'vpn_activa'];
         
-        <!-- Sidebar Izquierda (Info y Usuarios) -->
-        <div class="w-full md:w-80 bg-white border-r border-gray-200 flex flex-col shadow-sm z-10 shrink-0 h-auto md:h-full">
-            <div class="p-6 border-b border-gray-100">
-                <div class="flex items-center gap-3 mb-4">
-                    <div class="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center">
-                        <i data-lucide="share-2" class="w-5 h-5"></i>
-                    </div>
-                    <div>
-                        <h2 class="font-bold text-gray-800">Sala P2P</h2>
-                        <p class="text-xs text-gray-500">Conexión directa segura</p>
-                    </div>
-                </div>
-
-                <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 relative">
-                    <p class="text-xs text-gray-500 mb-1 uppercase font-semibold">Código del Grupo</p>
-                    <div class="flex items-center justify-between">
-                        <span id="display-room-code" class="text-xl font-mono font-bold text-gray-800 tracking-wider"></span>
-                        <button onclick="copyRoomCode()" class="p-2 bg-white rounded-lg shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors" title="Copiar Código">
-                            <i data-lucide="copy" class="w-4 h-4 text-gray-600"></i>
-                        </button>
-                    </div>
-                    <div id="copy-toast" class="absolute top-[-30px] right-0 bg-gray-800 text-white text-xs px-2 py-1 rounded hidden">¡Copiado!</div>
-                </div>
-            </div>
-
-            <div class="flex-1 overflow-y-auto p-6">
-                <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Participantes (<span id="user-count">1</span>)</h3>
-                <ul id="user-list" class="space-y-3">
-                    <!-- Los usuarios aparecerán aquí -->
-                </ul>
-            </div>
-            
-            <div class="p-4 border-t border-gray-100">
-                 <button onclick="leaveRoom()" class="w-full py-2 px-4 bg-red-50 text-red-600 font-medium rounded-lg hover:bg-red-100 flex items-center justify-center gap-2 transition-colors">
-                    <i data-lucide="log-out" class="w-4 h-4"></i> Salir del Grupo
-                 </button>
-            </div>
-        </div>
-
-        <!-- Área Principal (Archivos) -->
-        <div class="flex-1 flex flex-col h-full bg-gray-50">
-            <!-- Cabecera de área principal -->
-            <div class="bg-white p-4 border-b border-gray-200 flex items-center justify-between shadow-sm">
-                <h2 class="font-semibold text-gray-800 flex items-center gap-2">
-                    <i data-lucide="folder-open" class="w-5 h-5 text-blue-500"></i> Archivos Compartidos
-                </h2>
-                <div class="flex gap-2">
-                    <!-- Inputs ocultos para seleccionar archivos -->
-                    <input type="file" id="file-input" multiple class="hidden" onchange="handleFilesSelected(event)">
-                    <input type="file" id="folder-input" webkitdirectory directory multiple class="hidden" onchange="handleFilesSelected(event)">
-                    
-                    <button onclick="document.getElementById('file-input').click()" class="px-3 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center gap-2 text-sm font-medium transition-colors shadow-sm">
-                        <i data-lucide="file-plus" class="w-4 h-4"></i> Enviar Archivos
-                    </button>
-                    <button onclick="document.getElementById('folder-input').click()" class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm font-medium transition-colors shadow-sm">
-                        <i data-lucide="folder-plus" class="w-4 h-4"></i> Enviar Carpeta
-                    </button>
-                </div>
-            </div>
-
-            <!-- Zona de Drop y Lista de Transferencias -->
-            <div id="drop-zone" class="flex-1 overflow-y-auto p-6 relative">
-                
-                <!-- Mensaje cuando no hay archivos -->
-                <div id="empty-state" class="h-full flex flex-col items-center justify-center text-center text-gray-400 border-2 border-dashed border-gray-300 rounded-2xl bg-gray-50/50">
-                    <i data-lucide="upload-cloud" class="w-16 h-16 mb-4 text-gray-300"></i>
-                    <p class="text-lg font-medium text-gray-600">Arrastra archivos o carpetas aquí</p>
-                    <p class="text-sm mt-1">Los archivos se enviarán automáticamente a todos los conectados</p>
-                </div>
-
-                <!-- Contenedor de las transferencias -->
-                <div id="transfers-container" class="space-y-4 hidden pb-10">
-                    <!-- Tarjetas de transferencia aparecerán aquí -->
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Overlay de carga inicial -->
-    <div id="loading-overlay" class="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 hidden flex-col items-center justify-center">
-        <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600 mb-4"></div>
-        <p class="text-gray-800 font-medium" id="loading-text">Conectando...</p>
-    </div>
-
-    <script>
-        // Inicializar Iconos
-        lucide.createIcons();
-
-        // --- ESTADO GLOBAL ---
-        let peer = null;
-        let myId = '';
-        let myName = '';
-        let isHost = false;
-        let connections = new Map(); // peerId -> DataConnection
-        let connectedUsers = new Map(); // peerId -> { name }
-        
-        const CHUNK_SIZE = 16 * 1024; // 16KB por chunk (Límite seguro de WebRTC)
-        let transfers = new Map(); // transferId -> { metadata, chunks, progress, etc }
-
-        // --- UTILIDADES ---
-        const generateCode = () => Math.random().toString(36).substring(2, 8).toUpperCase();
-        
-        const showLoading = (text) => {
-            document.getElementById('loading-text').innerText = text;
-            document.getElementById('loading-overlay').classList.remove('hidden');
-            document.getElementById('loading-overlay').classList.add('flex');
-        };
-        const hideLoading = () => {
-            document.getElementById('loading-overlay').classList.add('hidden');
-            document.getElementById('loading-overlay').classList.remove('flex');
-        };
-
-        const showError = (msg) => {
-            const errEl = document.getElementById('login-error');
-            errEl.innerText = msg;
-            errEl.classList.remove('hidden');
-            setTimeout(() => errEl.classList.add('hidden'), 5000);
-        };
-
-        const showJoinInput = () => {
-            document.getElementById('join-section').classList.remove('hidden');
-        };
-
-        const formatBytes = (bytes, decimals = 2) => {
-            if (!+bytes) return '0 Bytes';
-            const k = 1024;
-            const dm = decimals < 0 ? 0 : decimals;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
-        };
-
-        // Copiar usando método legacy para asegurar compatibilidad en iframes
-        const copyRoomCode = () => {
-            const code = document.getElementById('display-room-code').innerText;
-            const textArea = document.createElement("textarea");
-            textArea.value = code;
-            document.body.appendChild(textArea);
-            textArea.select();
-            try {
-                document.execCommand('copy');
-                const toast = document.getElementById('copy-toast');
-                toast.classList.remove('hidden');
-                setTimeout(() => toast.classList.add('hidden'), 2000);
-            } catch (err) {
-                console.error('No se pudo copiar', err);
+        const initialModules = {
+            Estacionamiento: {
+                estacionamiento_capacidad: 500,
+                estacionamiento_ocupacion: 342,
+                barrera_estado: 'abierta'
+            },
+            Aplicacion: {
+                app_version: 'v4.2.1',
+                app_sesiones_activas: 18
+            },
+            Red_y_Nube: {
+                nube_ultima_sync: '2026-04-24 07:35:00',
+                vpn_activa: 'si'
             }
-            document.body.removeChild(textArea);
         };
 
-        // --- INICIAR Y CONECTAR PEERJS ---
+        // --- COMPONENTE PRINCIPAL ---
+        const App = () => {
+            // Estado Global
+            const [activeTab, setActiveTab] = useState('dashboard');
+            const [serverIp, setServerIp] = useState('10.8.0.45');
+            const [isConnected, setIsConnected] = useState(false);
+            const [heartbeatCount, setHeartbeatCount] = useState(0);
+            
+            // Permisos y Configuración
+            const [currentUserRole, setCurrentUserRole] = useState('admin'); // admin, support, viewer
+            const [globalEditEnabled, setGlobalEditEnabled] = useState(false);
+            
+            // Datos
+            const [modulesData, setModulesData] = useState(initialModules);
+            const [logs, setLogs] = useState([]);
 
-        const initPeer = (idToRequest = null) => {
-            return new Promise((resolve, reject) => {
-                const config = {
-                    debug: 1,
-                    config: {'iceServers': [
-                        { url: 'stun:stun.l.google.com:19302' },
-                        { url: 'stun:stun1.l.google.com:19302' }
-                    ]}
+            // Simulador de Heartbeat
+            useEffect(() => {
+                let interval;
+                if (isConnected) {
+                    interval = setInterval(() => {
+                        setHeartbeatCount(c => c + 1);
+                    }, 3000);
+                }
+                return () => clearInterval(interval);
+            }, [isConnected]);
+
+            // Sistema de Logs (Auditoría)
+            const addLog = (action, details, oldData = null, newData = null) => {
+                const newLog = {
+                    id: Date.now(),
+                    timestamp: new Date().toISOString(),
+                    userRole: currentUserRole,
+                    action,
+                    details,
+                    diff: { old: oldData, new: newData }
                 };
-                
-                peer = idToRequest ? new Peer(idToRequest, config) : new Peer(config);
-
-                peer.on('open', (id) => {
-                    myId = id;
-                    resolve(id);
-                });
-
-                peer.on('error', (err) => {
-                    console.error("PeerJS Error:", err);
-                    reject(err);
-                });
-
-                // Escuchar conexiones entrantes
-                peer.on('connection', handleIncomingConnection);
-            });
-        };
-
-        const createRoom = async () => {
-            const nameInput = document.getElementById('username').value.trim();
-            if(!nameInput) return showError("Por favor ingresa tu nombre");
-            myName = nameInput;
-
-            showLoading("Creando grupo...");
-            try {
-                // El host intentará usar un ID de 6 letras legible
-                const roomCode = generateCode();
-                await initPeer('P2P-' + roomCode); 
-                isHost = true;
-                enterRoomUI(roomCode);
-            } catch (err) {
-                // Si falla (quizás id duplicado), usar uno aleatorio
-                try {
-                    await initPeer();
-                    isHost = true;
-                    enterRoomUI(myId);
-                } catch(e) {
-                    hideLoading();
-                    showError("Error al conectar con el servidor de señalización.");
-                }
-            }
-        };
-
-        const joinRoom = async () => {
-            const nameInput = document.getElementById('username').value.trim();
-            let roomCode = document.getElementById('room-code').value.trim().toUpperCase();
-            
-            if(!nameInput) return showError("Por favor ingresa tu nombre");
-            if(!roomCode) return showError("Ingresa el código del grupo");
-            myName = nameInput;
-
-            // Formatear si no incluyeron el prefijo
-            if(roomCode.length === 6) roomCode = 'P2P-' + roomCode;
-
-            showLoading("Conectando al grupo...");
-            try {
-                await initPeer();
-                isHost = false;
-                
-                // Conectar al Host
-                const conn = peer.connect(roomCode, { metadata: { name: myName } });
-                setupConnectionHandling(conn);
-                
-                conn.on('open', () => {
-                    enterRoomUI(roomCode.replace('P2P-', ''));
-                });
-                
-                setTimeout(() => {
-                    if(!connections.has(roomCode)) {
-                        hideLoading();
-                        showError("No se pudo conectar. Verifica el código.");
-                    }
-                }, 5000);
-
-            } catch(e) {
-                hideLoading();
-                showError("Error de conexión P2P.");
-            }
-        };
-
-        // --- MANEJO DE CONEXIONES Y RED (MALLA / MESH) ---
-
-        const handleIncomingConnection = (conn) => {
-            // Un peer se está conectando a nosotros
-            setupConnectionHandling(conn);
-        };
-
-        const setupConnectionHandling = (conn) => {
-            conn.on('open', () => {
-                const peerId = conn.peer;
-                const peerName = conn.metadata?.name || 'Desconocido';
-                
-                connections.set(peerId, conn);
-                connectedUsers.set(peerId, { name: peerName });
-                
-                updateUsersUI();
-                
-                // Si soy el Host, informo al nuevo integrante quiénes más están conectados
-                // para que forme la malla (Mesh network)
-                if (isHost) {
-                    const otherPeers = Array.from(connectedUsers.entries())
-                        .filter(([id]) => id !== peerId)
-                        .map(([id, data]) => ({ id, name: data.name }));
-                    
-                    conn.send({ type: 'network-info', peers: otherPeers, hostName: myName });
-                } else {
-                    // Si no soy el host, le envío mis datos al que me conectó
-                    conn.send({ type: 'hello', name: myName });
-                }
-            });
-
-            conn.on('data', (data) => processData(conn.peer, data));
-            
-            conn.on('close', () => {
-                connections.delete(conn.peer);
-                connectedUsers.delete(conn.peer);
-                updateUsersUI();
-            });
-            
-            conn.on('error', (err) => console.log('Error de conexión:', err));
-        };
-
-        const connectToPeer = (peerId, peerName) => {
-            if(peerId === myId || connections.has(peerId)) return;
-            const conn = peer.connect(peerId, { metadata: { name: myName } });
-            setupConnectionHandling(conn);
-        };
-
-        // --- PROCESAMIENTO DE MENSAJES Y ARCHIVOS ---
-
-        const processData = (senderId, data) => {
-            if (!data || !data.type) return;
-
-            switch (data.type) {
-                // --- Señalización Interna (Mesh) ---
-                case 'network-info':
-                    // Recibido del Host. Contiene info de otros peers a los que debo conectarme.
-                    connectedUsers.set(senderId, { name: data.hostName });
-                    updateUsersUI();
-                    data.peers.forEach(p => connectToPeer(p.id, p.name));
-                    break;
-                case 'hello':
-                    // Saludo de un peer directo
-                    connectedUsers.set(senderId, { name: data.name });
-                    updateUsersUI();
-                    break;
-
-                // --- Transferencia de Archivos ---
-                case 'file-header':
-                    handleIncomingFileHeader(senderId, data);
-                    break;
-                case 'file-chunk':
-                    handleIncomingFileChunk(data);
-                    break;
-                case 'file-end':
-                    handleIncomingFileEnd(data);
-                    break;
-            }
-        };
-
-        // --- LOGICA DE TRANSFERENCIA DE ARCHIVOS ---
-
-        const broadcastData = async (data) => {
-            const conns = Array.from(connections.values());
-            for (let conn of conns) {
-                if (conn.open) {
-                    // Control de flujo rudimentario para no saturar el canal de WebRTC
-                    while (conn.dataChannel && conn.dataChannel.bufferedAmount > 2 * 1024 * 1024) { // 2MB
-                        await new Promise(r => setTimeout(r, 50));
-                    }
-                    conn.send(data);
-                }
-            }
-        };
-
-        const handleFilesSelected = async (event) => {
-            const files = event.target.files;
-            if(!files || files.length === 0) return;
-
-            if (connections.size === 0) {
-                alert("No hay nadie conectado a la sala todavía.");
-                event.target.value = ''; // Reset
-                return;
-            }
-
-            for(let file of files) {
-                await sendFile(file);
-            }
-            event.target.value = ''; // Reset input
-        };
-
-        const sendFile = async (file) => {
-            const transferId = 'tx-' + Math.random().toString(36).substring(2, 10);
-            const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-            
-            // Usar webkitRelativePath si seleccionaron una carpeta, de lo contrario el nombre normal
-            const displayPath = file.webkitRelativePath ? file.webkitRelativePath : file.name;
-
-            // 1. Guardar estado local
-            transfers.set(transferId, {
-                id: transferId,
-                name: displayPath,
-                size: file.size,
-                type: file.type,
-                direction: 'out',
-                progress: 0,
-                totalChunks: totalChunks,
-                status: 'sending'
-            });
-            renderTransfer(transferId);
-
-            // 2. Enviar Header
-            await broadcastData({
-                type: 'file-header',
-                transferId,
-                name: displayPath,
-                size: file.size,
-                fileType: file.type,
-                totalChunks,
-                senderName: myName
-            });
-
-            // Si el archivo está vacío
-            if (file.size === 0) {
-                await broadcastData({ type: 'file-end', transferId });
-                updateTransferProgress(transferId, 100);
-                return;
-            }
-
-            // 3. Leer y enviar chunks secuencialmente
-            let chunkIndex = 0;
-            const reader = new FileReader();
-
-            const readNextChunk = () => {
-                const start = chunkIndex * CHUNK_SIZE;
-                const end = Math.min(start + CHUNK_SIZE, file.size);
-                const blob = file.slice(start, end);
-                reader.readAsArrayBuffer(blob);
+                setLogs(prev => [newLog, ...prev]);
             };
 
-            return new Promise((resolve) => {
-                reader.onload = async (e) => {
-                    const buffer = e.target.result;
-                    
-                    await broadcastData({
-                        type: 'file-chunk',
-                        transferId,
-                        chunkIndex,
-                        data: buffer
-                    });
+            const handleConnect = () => {
+                if (!serverIp) {
+                    alert("Introduce una IP válida a través de la VPN");
+                    return;
+                }
+                setIsConnected(!isConnected);
+                addLog(isConnected ? "DESCONEXIÓN" : "CONEXIÓN", `Servidor local en ${serverIp}`);
+            };
 
-                    chunkIndex++;
-                    const progress = Math.round((chunkIndex / totalChunks) * 100);
-                    updateTransferProgress(transferId, progress);
+            const hasPermission = () => ['admin', 'support'].includes(currentUserRole);
 
-                    if (chunkIndex < totalChunks) {
-                        readNextChunk();
-                    } else {
-                        // Terminado
-                        await broadcastData({ type: 'file-end', transferId });
-                        updateTransferProgress(transferId, 100, 'Completado');
-                        resolve();
-                    }
-                };
-                readNextChunk(); // Iniciar
-            });
-        };
-
-        const handleIncomingFileHeader = (senderId, data) => {
-            transfers.set(data.transferId, {
-                id: data.transferId,
-                name: data.name,
-                size: data.size,
-                type: data.fileType,
-                direction: 'in',
-                progress: 0,
-                totalChunks: data.totalChunks,
-                receivedChunks: 0,
-                chunks: [], // Arreglo para guardar los buffers
-                senderName: data.senderName,
-                status: 'receiving'
-            });
-            renderTransfer(data.transferId);
-        };
-
-        const handleIncomingFileChunk = (data) => {
-            const tx = transfers.get(data.transferId);
-            if (!tx) return;
-
-            tx.chunks[data.chunkIndex] = data.data;
-            tx.receivedChunks++;
-            
-            const progress = Math.round((tx.receivedChunks / tx.totalChunks) * 100);
-            updateTransferProgress(data.transferId, progress);
-        };
-
-        const handleIncomingFileEnd = (data) => {
-            const tx = transfers.get(data.transferId);
-            if (!tx) return;
-
-            // Combinar todos los chunks
-            const blob = new Blob(tx.chunks, { type: tx.type });
-            tx.blobUrl = URL.createObjectURL(blob);
-            tx.status = 'completed';
-            
-            // Liberar memoria del arreglo
-            delete tx.chunks; 
-
-            updateTransferProgress(data.transferId, 100, 'Completado');
-            
-            // Habilitar botón de descarga
-            const txElement = document.getElementById(data.transferId);
-            if(txElement) {
-                const btnContainer = txElement.querySelector('.action-container');
-                btnContainer.innerHTML = `
-                    <a href="${tx.blobUrl}" download="${tx.name.split('/').pop()}" 
-                       class="px-3 py-1 bg-blue-600 text-white text-xs font-semibold rounded-md hover:bg-blue-700 shadow-sm transition flex items-center gap-1">
-                       <i data-lucide="download" class="w-3 h-3"></i> Guardar
-                    </a>
-                `;
-                lucide.createIcons({root: btnContainer});
-            }
-        };
-
-        // --- MANEJO DE INTERFAZ (UI) ---
-
-        const enterRoomUI = (code) => {
-            hideLoading();
-            document.getElementById('screen-login').classList.add('hidden');
-            document.getElementById('screen-room').classList.remove('hidden');
-            document.getElementById('display-room-code').innerText = code;
-            
-            updateUsersUI();
-            setupDragAndDrop();
-        };
-
-        const leaveRoom = () => {
-            if(peer) peer.destroy();
-            connections.clear();
-            connectedUsers.clear();
-            transfers.clear();
-            
-            document.getElementById('user-list').innerHTML = '';
-            document.getElementById('transfers-container').innerHTML = '';
-            document.getElementById('transfers-container').classList.add('hidden');
-            document.getElementById('empty-state').classList.remove('hidden');
-            
-            document.getElementById('screen-room').classList.add('hidden');
-            document.getElementById('screen-login').classList.remove('hidden');
-        };
-
-        const updateUsersUI = () => {
-            const list = document.getElementById('user-list');
-            const count = document.getElementById('user-count');
-            
-            list.innerHTML = '';
-            count.innerText = connections.size + 1; // +1 incluyéndome
-
-            // Yo
-            list.innerHTML += `
-                <li class="flex items-center gap-3 p-2 rounded-lg bg-blue-50 border border-blue-100">
-                    <div class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm">
-                        ${myName.charAt(0).toUpperCase()}
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <p class="text-sm font-semibold text-blue-900 truncate">${myName} (Tú)</p>
-                    </div>
-                </li>
-            `;
-
-            // Los demás
-            connectedUsers.forEach((data, id) => {
-                list.innerHTML += `
-                    <li class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 border border-transparent">
-                        <div class="w-8 h-8 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center font-bold text-sm">
-                            ${data.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm font-medium text-gray-700 truncate">${data.name}</p>
-                            <p class="text-xs text-green-500 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-500 inline-block"></span> Conectado</p>
-                        </div>
-                    </li>
-                `;
-            });
-        };
-
-        const renderTransfer = (transferId) => {
-            document.getElementById('empty-state').classList.add('hidden');
-            const container = document.getElementById('transfers-container');
-            container.classList.remove('hidden');
-
-            const tx = transfers.get(transferId);
-            const isOut = tx.direction === 'out';
-            const icon = isOut ? 'upload' : 'download';
-            const color = isOut ? 'text-purple-500' : 'text-blue-500';
-            const bgIcon = isOut ? 'bg-purple-100' : 'bg-blue-100';
-            const actionText = isOut ? `Enviando a ${connections.size} persona(s)` : `Recibiendo de ${tx.senderName}`;
-
-            const html = `
-                <div id="${transferId}" class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col gap-3 animate-fade-in">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-3 overflow-hidden">
-                            <div class="w-10 h-10 rounded-lg ${bgIcon} ${color} flex items-center justify-center shrink-0">
-                                <i data-lucide="${icon}" class="w-5 h-5"></i>
+            return (
+                <div className="flex h-screen overflow-hidden bg-darker text-sm">
+                    {/* SIDEBAR */}
+                    <aside className="w-64 bg-dark border-r border-slate-800 flex flex-col">
+                        <div className="p-4 border-b border-slate-800 flex items-center space-x-3">
+                            <div className="w-8 h-8 rounded bg-primary flex items-center justify-center text-white font-bold">
+                                JP
                             </div>
-                            <div class="min-w-0 flex-1">
-                                <p class="text-sm font-semibold text-gray-800 truncate" title="${tx.name}">${tx.name}</p>
-                                <p class="text-xs text-gray-500">${formatBytes(tx.size)} • ${actionText}</p>
+                            <div>
+                                <h1 className="font-bold text-slate-100">SoporteApp</h1>
+                                <p className="text-xs text-slate-400">Ver. Local Integrada</p>
                             </div>
                         </div>
-                        <div class="action-container shrink-0 ml-2">
-                            <span class="text-xs font-semibold text-gray-500 status-text">0%</span>
+
+                        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+                            {[
+                                { id: 'dashboard', icon: Icons.Dashboard, label: 'Dashboard General' },
+                                { id: 'modules', icon: Icons.Modules, label: 'Edición de Módulos' },
+                                { id: 'mapping', icon: Icons.Map, label: 'Mapeo I/O (JSON)' },
+                                { id: 'scanner', icon: Icons.Scan, label: 'Escáner de Red' },
+                                { id: 'history', icon: Icons.History, label: 'Historial / Auditoría' },
+                                { id: 'settings', icon: Icons.Settings, label: 'Configuración' }
+                            ].map(item => (
+                                <button
+                                    key={item.id}
+                                    onClick={() => setActiveTab(item.id)}
+                                    className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${activeTab === item.id ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}`}
+                                >
+                                    <item.icon />
+                                    <span>{item.label}</span>
+                                </button>
+                            ))}
+                        </nav>
+                        
+                        <div className="p-4 border-t border-slate-800">
+                            <p className="text-xs text-slate-500 mb-2">Rol Actual:</p>
+                            <select 
+                                value={currentUserRole} 
+                                onChange={(e) => {
+                                    setCurrentUserRole(e.target.value);
+                                    addLog("CAMBIO_ROL", `El usuario cambió su rol a ${e.target.value}`);
+                                }}
+                                className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-200 outline-none focus:border-primary"
+                            >
+                                <option value="admin">Administrador (Total)</option>
+                                <option value="support">Soporte (Limitado)</option>
+                                <option value="viewer">Lector (Solo vista)</option>
+                            </select>
                         </div>
-                    </div>
+                    </aside>
+
+                    {/* MAIN CONTENT */}
+                    <main className="flex-1 flex flex-col h-screen relative">
+                        {/* TOPBAR */}
+                        <header className="h-16 bg-panel border-b border-slate-800 flex items-center justify-between px-6 z-10">
+                            <div className="flex items-center space-x-4">
+                                <span className="text-slate-400 font-medium tracking-wide">
+                                    CONEXIÓN VPN/LOCAL
+                                </span>
+                                <div className="flex items-center space-x-2 bg-dark rounded border border-slate-700 px-2 py-1">
+                                    <Icons.Server />
+                                    <input 
+                                        type="text" 
+                                        value={serverIp}
+                                        onChange={e => setServerIp(e.target.value)}
+                                        disabled={isConnected}
+                                        placeholder="192.168.x.x / 10.x.x.x"
+                                        className="bg-transparent border-none outline-none text-slate-200 w-40 text-sm disabled:opacity-50"
+                                    />
+                                </div>
+                                <button 
+                                    onClick={handleConnect}
+                                    className={`px-4 py-1.5 rounded font-medium transition-colors ${isConnected ? 'bg-rose-500/20 text-rose-400 hover:bg-rose-500/30' : 'bg-primary/20 text-primary hover:bg-primary/30'}`}
+                                >
+                                    {isConnected ? 'Desconectar' : 'Conectar al Servidor'}
+                                </button>
+                            </div>
+
+                            <div className="flex items-center space-x-4">
+                                {isConnected ? (
+                                    <div className="flex items-center space-x-2 text-accent">
+                                        <div className="w-3 h-3 bg-accent rounded-full pulse-dot"></div>
+                                        <span className="text-sm font-medium tracking-wider">HEARTBEAT OK ({heartbeatCount})</span>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center space-x-2 text-slate-500">
+                                        <div className="w-3 h-3 bg-slate-600 rounded-full"></div>
+                                        <span className="text-sm font-medium">SIN CONEXIÓN</span>
+                                    </div>
+                                )}
+                            </div>
+                        </header>
+
+                        {/* TAB CONTENT */}
+                        <div className="flex-1 overflow-y-auto p-6 bg-darker">
+                            {activeTab === 'dashboard' && <DashboardTab modulesData={modulesData} isConnected={isConnected} />}
+                            {activeTab === 'modules' && <ModulesTab 
+                                data={modulesData} 
+                                setData={setModulesData} 
+                                globalEdit={globalEditEnabled} 
+                                canEdit={hasPermission()}
+                                addLog={addLog}
+                            />}
+                            {activeTab === 'mapping' && <MappingTab 
+                                data={modulesData} 
+                                setData={setModulesData} 
+                                schema={initialSchema}
+                                addLog={addLog}
+                                canEdit={hasPermission()}
+                            />}
+                            {activeTab === 'scanner' && <ScannerTab setIp={setServerIp} />}
+                            {activeTab === 'history' && <HistoryTab logs={logs} />}
+                            {activeTab === 'settings' && <SettingsTab 
+                                globalEdit={globalEditEnabled} 
+                                setGlobalEdit={setGlobalEditEnabled}
+                                canEdit={currentUserRole === 'admin'}
+                                addLog={addLog}
+                            />}
+                        </div>
+                    </main>
+                </div>
+            );
+        };
+
+        // --- SUB-COMPONENTES (VISTAS) ---
+
+        const DashboardTab = ({ modulesData, isConnected }) => {
+            return (
+                <div className="space-y-6">
+                    <h2 className="text-xl font-bold text-slate-100 flex items-center"><Icons.Dashboard/><span className="ml-2">Visión Global</span></h2>
                     
-                    <!-- Barra de progreso -->
-                    <div class="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-                        <div class="bg-blue-500 h-1.5 rounded-full transition-all duration-300 w-0 progress-bar"></div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* Server Status Card */}
+                        <div className="bg-panel rounded-xl p-5 border border-slate-700 shadow-lg">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-slate-400 font-semibold flex items-center"><Icons.Server/><span className="ml-2">Servidor Local</span></h3>
+                                <span className={`px-2 py-1 rounded text-xs font-bold ${isConnected ? 'bg-accent/20 text-accent' : 'bg-rose-500/20 text-rose-400'}`}>
+                                    {isConnected ? 'EN LÍNEA' : 'FUERA DE LÍNEA'}
+                                </span>
+                            </div>
+                            <div className="space-y-3">
+                                <div className="flex justify-between">
+                                    <span className="text-slate-500">Versión App</span>
+                                    <span className="text-slate-200">{modulesData.Aplicacion.app_version}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-slate-500">Sesiones</span>
+                                    <span className="text-slate-200 font-mono bg-slate-800 px-2 rounded">{modulesData.Aplicacion.app_sesiones_activas}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Parking Status Card */}
+                        <div className="bg-panel rounded-xl p-5 border border-slate-700 shadow-lg">
+                            <h3 className="text-slate-400 font-semibold mb-4 flex items-center">
+                                <svg className="w-5 h-5 ml-1 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"></path></svg>
+                                Estacionamiento
+                            </h3>
+                            <div className="mb-4">
+                                <div className="flex justify-between mb-1 text-sm">
+                                    <span className="text-slate-400">Ocupación</span>
+                                    <span className="text-slate-200">{modulesData.Estacionamiento.estacionamiento_ocupacion} / {modulesData.Estacionamiento.estacionamiento_capacidad}</span>
+                                </div>
+                                <div className="w-full bg-slate-800 rounded-full h-2.5">
+                                    <div className="bg-primary h-2.5 rounded-full" style={{width: `${(modulesData.Estacionamiento.estacionamiento_ocupacion / modulesData.Estacionamiento.estacionamiento_capacidad) * 100}%`}}></div>
+                                </div>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span className="text-slate-500">Estado Barrera Principal</span>
+                                <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${modulesData.Estacionamiento.barrera_estado === 'abierta' ? 'bg-accent/20 text-accent' : 'bg-yellow-500/20 text-yellow-500'}`}>
+                                    {modulesData.Estacionamiento.barrera_estado}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Cloud Sync Card */}
+                        <div className="bg-panel rounded-xl p-5 border border-slate-700 shadow-lg">
+                            <h3 className="text-slate-400 font-semibold mb-4 flex items-center"><Icons.Cloud/><span className="ml-2">Estado Nube</span></h3>
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-slate-500">Última Sincronización</span>
+                                    <span className="text-slate-300 text-xs">{modulesData.Red_y_Nube.nube_ultima_sync}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-slate-500">Túnel VPN</span>
+                                    <span className="text-accent flex items-center"><Icons.Check/> <span className="ml-1 uppercase text-xs font-bold">{modulesData.Red_y_Nube.vpn_activa}</span></span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            `;
-            
-            container.insertAdjacentHTML('afterbegin', html);
-            lucide.createIcons({ root: document.getElementById(transferId) });
+            );
         };
 
-        const updateTransferProgress = (transferId, percentage, statusTextOverwrite = null) => {
-            const el = document.getElementById(transferId);
-            if(!el) return;
+        const ModulesTab = ({ data, setData, globalEdit, canEdit, addLog }) => {
+            return (
+                <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-xl font-bold text-slate-100 flex items-center"><Icons.Modules/><span className="ml-2">Edición de Módulos</span></h2>
+                        {!globalEdit && (
+                            <span className="text-rose-400 text-xs bg-rose-500/10 px-2 py-1 rounded border border-rose-500/20 flex items-center">
+                                <Icons.Alert/><span className="ml-1">Edición global deshabilitada en Configuración</span>
+                            </span>
+                        )}
+                        {!canEdit && globalEdit && (
+                            <span className="text-yellow-400 text-xs bg-yellow-500/10 px-2 py-1 rounded border border-yellow-500/20">
+                                Permisos insuficientes (Modo Lector)
+                            </span>
+                        )}
+                    </div>
 
-            const progressBar = el.querySelector('.progress-bar');
-            const statusText = el.querySelector('.status-text');
-
-            progressBar.style.width = `${percentage}%`;
-            
-            if (percentage === 100) {
-                progressBar.classList.remove('bg-blue-500');
-                progressBar.classList.add('bg-green-500');
-            }
-
-            if(statusTextOverwrite) {
-                if(statusText) statusText.innerText = statusTextOverwrite;
-            } else {
-                if(statusText) statusText.innerText = `${percentage}%`;
-            }
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                        {Object.entries(data).map(([moduleName, moduleData]) => (
+                            <ModuleCard 
+                                key={moduleName}
+                                name={moduleName}
+                                initialData={moduleData}
+                                onSave={(newData) => {
+                                    const oldData = {...data[moduleName]};
+                                    setData(prev => ({...prev, [moduleName]: newData}));
+                                    addLog(`EDICIÓN_MÓDULO`, `Módulo ${moduleName} actualizado`, oldData, newData);
+                                }}
+                                globalEdit={globalEdit}
+                                canEdit={canEdit}
+                            />
+                        ))}
+                    </div>
+                </div>
+            );
         };
 
-        // --- ARRASTRAR Y SOLTAR (Drag & Drop) ---
-        const setupDragAndDrop = () => {
-            const dropZone = document.getElementById('drop-zone');
+        const ModuleCard = ({ name, initialData, onSave, globalEdit, canEdit }) => {
+            const [isEditing, setIsEditing] = useState(false);
+            const [editData, setEditData] = useState(initialData);
+            const [error, setError] = useState('');
 
-            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                dropZone.addEventListener(eventName, preventDefaults, false);
-            });
+            // Resetear data si cancelan
+            useEffect(() => { setEditData(initialData); }, [initialData, isEditing]);
 
-            function preventDefaults(e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-
-            ['dragenter', 'dragover'].forEach(eventName => {
-                dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'), false);
-            });
-
-            ['dragleave', 'drop'].forEach(eventName => {
-                dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'), false);
-            });
-
-            dropZone.addEventListener('drop', handleDrop, false);
-        };
-
-        const handleDrop = async (e) => {
-            const dt = e.dataTransfer;
-            const items = dt.items;
-
-            if (connections.size === 0) {
-                alert("No hay nadie conectado para recibir los archivos.");
-                return;
-            }
-
-            // Si el navegador soporta webkitGetAsEntry (para recorrer carpetas arrastradas)
-            if (items && items[0] && items[0].webkitGetAsEntry) {
-                for (let i = 0; i < items.length; i++) {
-                    const item = items[i].webkitGetAsEntry();
-                    if (item) {
-                        traverseFileTree(item);
+            const handleSave = () => {
+                // Mock: 52 mil validaciones
+                for (const [key, value] of Object.entries(editData)) {
+                    if (value === '') {
+                        setError(`El campo ${key} no puede estar vacío.`);
+                        return;
+                    }
+                    if (key.includes('capacidad') && isNaN(value)) {
+                        setError(`Capacidad debe ser un número válido.`);
+                        return;
                     }
                 }
-            } else {
-                // Fallback normal
-                const files = dt.files;
-                for(let file of files) {
-                    await sendFile(file);
-                }
-            }
+                setError('');
+                onSave(editData);
+                setIsEditing(false);
+            };
+
+            const handleChange = (k, v) => {
+                setEditData(prev => ({...prev, [k]: v}));
+            };
+
+            const isEditable = globalEdit && canEdit;
+
+            return (
+                <div className="bg-panel border border-slate-700 rounded-xl overflow-hidden shadow-lg transition-all">
+                    <div className="bg-slate-800/50 px-4 py-3 border-b border-slate-700 flex justify-between items-center">
+                        <h3 className="font-bold text-slate-200 capitalize">{name.replace(/_/g, ' ')}</h3>
+                        {!isEditing ? (
+                            <button 
+                                onClick={() => setIsEditing(true)}
+                                disabled={!isEditable}
+                                className={`text-xs px-3 py-1 rounded transition-colors ${isEditable ? 'bg-primary/20 text-primary hover:bg-primary/40' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}`}
+                            >
+                                Habilitar Cambios
+                            </button>
+                        ) : (
+                            <span className="text-xs text-accent font-bold animate-pulse">Modo Edición...</span>
+                        )}
+                    </div>
+                    
+                    <div className="p-4 space-y-3">
+                        {error && <div className="bg-rose-500/10 border border-rose-500 text-rose-400 text-xs p-2 rounded">{error}</div>}
+                        
+                        {Object.entries(isEditing ? editData : initialData).map(([k, v]) => (
+                            <div key={k} className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-1 sm:space-y-0">
+                                <label className="text-slate-400 text-xs font-mono">{k}</label>
+                                {isEditing ? (
+                                    <input 
+                                        type="text" 
+                                        value={v} 
+                                        onChange={(e) => handleChange(k, e.target.value)}
+                                        className="bg-darker border border-slate-600 rounded px-2 py-1 text-slate-200 focus:border-primary outline-none font-mono text-sm sm:w-1/2"
+                                    />
+                                ) : (
+                                    <span className="text-slate-200 font-mono text-sm bg-slate-800/50 px-2 py-1 rounded sm:w-1/2 truncate text-right">{v}</span>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+
+                    {isEditing && (
+                        <div className="bg-slate-800/50 px-4 py-3 border-t border-slate-700 flex justify-end space-x-2">
+                            <button 
+                                onClick={() => { setIsEditing(false); setError(''); }}
+                                className="flex items-center space-x-1 text-xs px-3 py-1.5 rounded bg-slate-700 text-slate-300 hover:bg-slate-600"
+                            >
+                                <Icons.X /> <span>Cancelar</span>
+                            </button>
+                            <button 
+                                onClick={handleSave}
+                                className="flex items-center space-x-1 text-xs px-3 py-1.5 rounded bg-accent text-darker font-bold hover:bg-emerald-400"
+                            >
+                                <Icons.Check /> <span>Guardar Cambios</span>
+                            </button>
+                        </div>
+                    )}
+                </div>
+            );
         };
 
-        // Recorrer árbol de directorios para Drag & Drop
-        const traverseFileTree = (item, path = "") => {
-            if (item.isFile) {
-                item.file(async (file) => {
-                    // Agregamos la ruta relativa artificialmente para mantener la estructura visual
-                    Object.defineProperty(file, 'webkitRelativePath', {
-                        value: path + file.name,
-                        writable: false
+        const MappingTab = ({ data, setData, schema, addLog, canEdit }) => {
+            // Aplanar data para el JSON
+            const flattenData = () => {
+                let flat = {};
+                Object.values(data).forEach(mod => { flat = {...flat, ...mod} });
+                return JSON.stringify(flat, null, 4);
+            };
+
+            const [jsonText, setJsonText] = useState(flattenData());
+            const [status, setStatus] = useState({ type: '', msg: '' });
+            const [unrecognized, setUnrecognized] = useState([]);
+
+            useEffect(() => {
+                // Actualizar textarea si la data cambia desde otro lado
+                setJsonText(flattenData());
+            }, [data]);
+
+            const handleTestMapeo = () => {
+                if (!canEdit) {
+                    setStatus({ type: 'error', msg: 'Permisos insuficientes para mapear parámetros.' });
+                    return;
+                }
+                try {
+                    const parsed = JSON.parse(jsonText);
+                    const incomingKeys = Object.keys(parsed);
+                    
+                    // Buscar desconocidos/obsoletos
+                    const unknown = incomingKeys.filter(k => !schema.includes(k));
+                    setUnrecognized(unknown);
+
+                    if (unknown.length > 0) {
+                        setStatus({ type: 'warning', msg: `Se encontraron ${unknown.length} parámetros desconocidos/obsoletos.` });
+                    } else {
+                        setStatus({ type: 'success', msg: 'JSON válido. Todos los parámetros reconocidos.' });
+                    }
+
+                    // Reconstruir estructura de módulos (lógica simple para el mockup)
+                    const newData = JSON.parse(JSON.stringify(data)); // deep copy
+                    let updatedCount = 0;
+                    
+                    Object.keys(newData).forEach(modName => {
+                        Object.keys(newData[modName]).forEach(key => {
+                            if (parsed[key] !== undefined) {
+                                newData[modName][key] = parsed[key];
+                                updatedCount++;
+                            }
+                        });
                     });
-                    await sendFile(file);
-                });
-            } else if (item.isDirectory) {
-                const dirReader = item.createReader();
-                dirReader.readEntries((entries) => {
-                    for (let i = 0; i < entries.length; i++) {
-                        traverseFileTree(entries[i], path + item.name + "/");
+
+                    setData(newData);
+                    addLog('MAPEO_JSON', `Importación JSON: ${updatedCount} actualizados, ${unknown.length} desconocidos ignorados.`);
+
+                } catch (e) {
+                    setStatus({ type: 'error', msg: 'Error de sintaxis JSON: ' + e.message });
+                }
+            };
+
+            return (
+                <div className="space-y-4 flex flex-col h-full">
+                    <h2 className="text-xl font-bold text-slate-100 flex items-center"><Icons.Map/><span className="ml-2">Mapeo I/O de Parámetros</span></h2>
+                    <p className="text-slate-400 text-sm">
+                        Solicita a Edbin/Servidor un JSON estructurado para probar el mapeo. Pega el JSON aquí y el sistema identificará versiones anteriores o parámetros obsoletos.
+                    </p>
+
+                    {status.msg && (
+                        <div className={`p-3 rounded border text-sm ${status.type === 'error' ? 'bg-rose-500/10 border-rose-500 text-rose-400' : status.type === 'warning' ? 'bg-yellow-500/10 border-yellow-500 text-yellow-400' : 'bg-accent/10 border-accent text-accent'}`}>
+                            {status.msg}
+                        </div>
+                    )}
+
+                    {unrecognized.length > 0 && (
+                        <div className="bg-darker border border-yellow-500/30 rounded p-3">
+                            <h4 className="text-yellow-500 text-xs font-bold uppercase mb-2 flex items-center"><Icons.Alert/><span className="ml-1">Parámetros Obsoletos/Desconocidos Detectados:</span></h4>
+                            <div className="flex flex-wrap gap-2">
+                                {unrecognized.map(k => (
+                                    <span key={k} className="bg-yellow-500/20 text-yellow-300 text-xs font-mono px-2 py-1 rounded border border-yellow-500/50">
+                                        {k}
+                                    </span>
+                                ))}
+                            </div>
+                            <p className="text-xs text-slate-500 mt-2">El servidor local rechazará estos parámetros al guardar, pero la vista de soporte permite verlos.</p>
+                        </div>
+                    )}
+
+                    <div className="flex-1 min-h-[300px] flex flex-col">
+                        <textarea 
+                            value={jsonText}
+                            onChange={(e) => setJsonText(e.target.value)}
+                            className="flex-1 w-full bg-slate-900 border border-slate-700 rounded-lg p-4 font-mono text-sm text-primary outline-none focus:border-primary resize-none"
+                            placeholder="Pega el JSON aquí..."
+                        />
+                    </div>
+                    
+                    <div className="flex justify-end space-x-3">
+                        <button 
+                            onClick={() => {setJsonText(flattenData()); setStatus({type:'',msg:''}); setUnrecognized([]);}}
+                            className="px-4 py-2 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 text-sm"
+                        >
+                            Resetear al Estado Actual
+                        </button>
+                        <button 
+                            onClick={handleTestMapeo}
+                            className="px-4 py-2 rounded bg-primary text-white font-bold hover:bg-blue-600 text-sm flex items-center"
+                        >
+                            <Icons.Check/> <span className="ml-2">Probar y Aplicar Mapeo</span>
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        const ScannerTab = ({ setIp }) => {
+            const [scanning, setScanning] = useState(false);
+            const [results, setResults] = useState([]);
+            const [progress, setProgress] = useState(0);
+
+            const handleScan = () => {
+                setScanning(true);
+                setResults([]);
+                setProgress(0);
+
+                // Simulación inteligente de escaneo
+                let p = 0;
+                const interval = setInterval(() => {
+                    p += 15;
+                    setProgress(p > 100 ? 100 : p);
+                    
+                    if (p === 30) {
+                        setResults(r => [...r, { ip: '10.8.0.12', type: 'Gateway', conf: 'Baja' }]);
                     }
-                });
-            }
+                    if (p === 75) {
+                        setResults(r => [...r, { ip: '10.8.0.45', type: 'Servidor Local Estacionamiento', conf: 'Alta (Match Heurístico)' }]);
+                    }
+
+                    if (p >= 100) {
+                        clearInterval(interval);
+                        setScanning(false);
+                    }
+                }, 500);
+            };
+
+            return (
+                <div className="space-y-6 max-w-3xl">
+                    <h2 className="text-xl font-bold text-slate-100 flex items-center"><Icons.Scan/><span className="ml-2">Identificador Inteligente de Red</span></h2>
+                    
+                    <div className="bg-panel border border-slate-700 rounded-xl p-6">
+                        <p className="text-slate-400 mb-4 text-sm">
+                            Realiza un barrido en el rango de la VPN y subredes locales para encontrar automáticamente la instancia del servidor.
+                        </p>
+
+                        <button 
+                            onClick={handleScan}
+                            disabled={scanning}
+                            className={`w-full py-3 rounded-lg font-bold flex justify-center items-center ${scanning ? 'bg-slate-700 text-slate-400 cursor-wait' : 'bg-primary text-white hover:bg-blue-600'}`}
+                        >
+                            {scanning ? (
+                                <><div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin mr-2"></div> Escaneando...</>
+                            ) : (
+                                <><Icons.Scan/><span className="ml-2">Iniciar Escaneo</span></>
+                            )}
+                        </button>
+
+                        {scanning && (
+                            <div className="mt-4 h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                                <div className="h-full bg-accent transition-all duration-300" style={{width: `${progress}%`}}></div>
+                            </div>
+                        )}
+
+                        {results.length > 0 && (
+                            <div className="mt-6 space-y-3">
+                                <h4 className="text-slate-200 font-semibold border-b border-slate-700 pb-2">Resultados ({results.length}):</h4>
+                                {results.map((res, i) => (
+                                    <div key={i} className="flex justify-between items-center bg-darker p-3 rounded border border-slate-800 hover:border-primary transition-colors cursor-pointer group" onClick={() => setIp(res.ip)}>
+                                        <div>
+                                            <div className="font-mono text-primary font-bold">{res.ip}</div>
+                                            <div className="text-xs text-slate-500">{res.type}</div>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-xs text-slate-400">Confianza</div>
+                                            <div className={`text-xs font-bold ${res.conf.includes('Alta') ? 'text-accent' : 'text-yellow-500'}`}>{res.conf}</div>
+                                        </div>
+                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded">Usar IP</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
         };
 
-        // Configuración adicional
-        window.onbeforeunload = function() {
-            if (connections.size > 0 || transfers.size > 0) {
-                return "Tienes conexiones o transferencias activas. ¿Seguro que quieres salir?";
-            }
+        const HistoryTab = ({ logs }) => {
+            return (
+                <div className="space-y-4 flex flex-col h-full">
+                    <h2 className="text-xl font-bold text-slate-100 flex items-center"><Icons.History/><span className="ml-2">Auditoría y Log de Acciones</span></h2>
+                    
+                    <div className="flex-1 bg-panel border border-slate-700 rounded-xl overflow-hidden flex flex-col">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                                <thead className="bg-slate-800 text-slate-400 uppercase text-xs">
+                                    <tr>
+                                        <th className="px-4 py-3">Timestamp</th>
+                                        <th className="px-4 py-3">Usuario/Rol</th>
+                                        <th className="px-4 py-3">Acción</th>
+                                        <th className="px-4 py-3">Detalle (Human-Readable)</th>
+                                        <th className="px-4 py-3">Machine Data (JSON)</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-800">
+                                    {logs.length === 0 ? (
+                                        <tr><td colSpan="5" className="text-center py-8 text-slate-500">No hay acciones registradas en esta sesión.</td></tr>
+                                    ) : (
+                                        logs.map(log => (
+                                            <tr key={log.id} className="hover:bg-slate-800/50 transition-colors">
+                                                <td className="px-4 py-3 font-mono text-xs text-slate-500">{new Date(log.timestamp).toLocaleTimeString()}</td>
+                                                <td className="px-4 py-3"><span className="bg-slate-800 px-2 py-1 rounded text-xs text-primary font-bold uppercase">{log.userRole}</span></td>
+                                                <td className="px-4 py-3 font-bold text-slate-300">{log.action}</td>
+                                                <td className="px-4 py-3 text-slate-400">{log.details}</td>
+                                                <td className="px-4 py-3">
+                                                    {log.diff.new ? (
+                                                        <details className="text-xs">
+                                                            <summary className="cursor-pointer text-primary hover:text-blue-400">Ver JSON Diff</summary>
+                                                            <div className="mt-2 p-2 bg-darker rounded overflow-x-auto max-w-xs font-mono text-emerald-400 whitespace-pre">
+                                                                {JSON.stringify(log.diff.new, null, 2)}
+                                                            </div>
+                                                        </details>
+                                                    ) : <span className="text-slate-600 text-xs">N/A</span>}
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            );
         };
 
+        const SettingsTab = ({ globalEdit, setGlobalEdit, canEdit, addLog }) => {
+            return (
+                <div className="space-y-6 max-w-2xl">
+                    <h2 className="text-xl font-bold text-slate-100 flex items-center"><Icons.Settings/><span className="ml-2">Configuración del Panel</span></h2>
+                    
+                    <div className="bg-panel border border-slate-700 rounded-xl p-6 space-y-6">
+                        
+                        <div className="flex items-center justify-between border-b border-slate-800 pb-6">
+                            <div>
+                                <h3 className="text-slate-200 font-bold text-base">Habilitar Edición de Módulos (Global)</h3>
+                                <p className="text-slate-500 text-sm mt-1">Permite que los botones de edición en cada módulo se activen. Si se apaga, toda la webapp es de solo lectura.</p>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input 
+                                    type="checkbox" 
+                                    className="sr-only peer"
+                                    checked={globalEdit}
+                                    disabled={!canEdit}
+                                    onChange={(e) => {
+                                        setGlobalEdit(e.target.checked);
+                                        addLog("CONFIG_SISTEMA", `Edición Global cambiada a: ${e.target.checked ? 'ACTIVO' : 'INACTIVO'}`);
+                                    }}
+                                />
+                                <div className={`w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${globalEdit ? 'bg-primary' : ''} ${!canEdit ? 'opacity-50 cursor-not-allowed' : ''}`}></div>
+                            </label>
+                        </div>
+
+                        {!canEdit && (
+                            <div className="bg-rose-500/10 border border-rose-500 p-3 rounded flex items-start space-x-3 text-rose-400 text-sm">
+                                <Icons.Alert />
+                                <span>No tienes permisos para modificar la configuración global. Debes tener el rol de Administrador.</span>
+                            </div>
+                        )}
+
+                        <div>
+                            <h3 className="text-slate-200 font-bold text-base mb-2">Acerca de esta Herramienta</h3>
+                            <p className="text-slate-400 text-sm leading-relaxed">
+                                Aplicación de soporte local offline. Desarrollada en un único archivo HTML portatil.<br/>
+                                <strong>Funciones base:</strong> Interceptador de VPN, Validador JSON de parámetros en tiempo real, Historial Machine-Readable para depuración de estados.
+                            </p>
+                        </div>
+
+                    </div>
+                </div>
+            );
+        };
+
+        // Renderizar la App
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
